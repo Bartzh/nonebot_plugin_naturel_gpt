@@ -77,7 +77,8 @@ class TextGenerator(Singleton["TextGenerator"]):
         """对话文本生成"""
         openai.api_key = key
         try:
-            if self.config['model'].startswith('gpt-3.5-turbo') or self.config['model'].startswith('gpt-4'):
+            #if self.config['model'].startswith('gpt-3.5-turbo') or self.config['model'].startswith('gpt-4'):
+            if True:
                 response = openai.ChatCompletion.create(
                     model=self.config['model'],
                     messages=prompt if isinstance(prompt, list) else [  # 如果是列表则直接使用，否则按照以下格式转换
@@ -87,9 +88,9 @@ class TextGenerator(Singleton["TextGenerator"]):
                     temperature=self.config['temperature'],
                     max_tokens=self.config['max_tokens'],
                     top_p=self.config['top_p'],
-                    frequency_penalty=self.config['frequency_penalty'],
+                    #frequency_penalty=self.config['frequency_penalty'],
                     presence_penalty=self.config['presence_penalty'],
-                    timeout=self.config.get('timeout', 30),
+                    #timeout=self.config.get('timeout', 30),
                     stop=[f"\n{custom.get('bot_name', 'AI')}:", f"\n{custom.get('sender_name', 'Human')}:"]
                 )
                 res:str = ''
@@ -118,7 +119,7 @@ class TextGenerator(Singleton["TextGenerator"]):
                     temperature=self.config['temperature'],
                     max_tokens=self.config['max_tokens'],
                     top_p=self.config['top_p'],
-                    frequency_penalty=self.config['frequency_penalty'],
+                    #frequency_penalty=self.config['frequency_penalty'],
                     presence_penalty=self.config['presence_penalty'],
                     stop=[f"\n{custom.get('bot_name', 'AI')}:", f"\n{custom.get('sender_name', 'Human')}:"]
                 )
@@ -132,16 +133,16 @@ class TextGenerator(Singleton["TextGenerator"]):
         openai.api_key = key
         try:
             response = openai.ChatCompletion.create(
-                model='gpt-3.5-turbo',
+                model=self.config['model'],
                 messages=[
                     {'role': 'user', 'content': prompt},
                 ],
                 temperature=0.6,
                 max_tokens=self.config.get('max_summary_tokens', 512),
                 top_p=1,
-                frequency_penalty=0.2,
+                #frequency_penalty=0.2,
                 presence_penalty=0.2,
-                timeout=self.config.get('timeout', 30),
+                #timeout=self.config.get('timeout', 30),
             )
             res = ''
             for choice in response.choices: # type: ignore
@@ -173,16 +174,16 @@ class TextGenerator(Singleton["TextGenerator"]):
         openai.api_key = key
         try:
             response = openai.ChatCompletion.create(
-                model='gpt-3.5-turbo-0301',
+                model=self.config['model'],
                 messages=[
                     {'role': 'user', 'content': prompt},
                 ],
                 temperature=0.6,
                 max_tokens=self.config.get('max_summary_tokens', 512),
                 top_p=1,
-                frequency_penalty=0.2,
+                #frequency_penalty=0.2,
                 presence_penalty=0.2,
-                timeout=self.config.get('timeout', 30),
+                #timeout=self.config.get('timeout', 30),
             )
             res = ''
             for choice in response.choices: # type: ignore

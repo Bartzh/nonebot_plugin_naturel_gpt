@@ -21,12 +21,16 @@ from .openai_func import TextGenerator
 from .command_func import cmd
 from .MCrcon.mcrcon import MCRcon   # fork from: https://github.com/Uncaught-Exceptions/MCRcon
 
+import math
+
 try:
     from .text_to_image import md_to_img, text_to_img
 except ImportError:
     logger.warning('未安装 nonebot_plugin_htmlrender 插件，无法使用 text_to_img')
     config.ENABLE_MSG_TO_IMG = False
     config.ENABLE_COMMAND_TO_IMG = False
+
+scheduled_sessions = []
 
 permission_check_func:Callable[[Matcher, Event, Bot, Optional[str], str], Awaitable[Tuple[bool,Optional[str]]]]
 is_progress:bool = False
@@ -226,6 +230,7 @@ async def _(matcher_:Matcher, event: MessageEvent, bot:Bot, arg: Message = Comma
 
 """ ======== 消息响应方法 ======== """
 async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, matcher: Type[Matcher], chat_type: str, chat_key: str, sender_name: Optional[str] = None, wake_up: bool = False, loop_times=0, loop_data={}, bot:Bot = None): # type: ignore
+    global scheduled_sessions
     """消息响应方法"""
 
     sender_name = sender_name or 'anonymous'
@@ -596,3 +601,49 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
                 chat_key=chat_key,
                 bot=bot,
             )
+
+    if chat_key not in scheduled_sessions:
+        scheduled_sessions.append(chat_key)
+        day_min = 0
+        day_max = 4
+        sec_min = 21600
+        sec_max = 75600
+        next_sec = random_next_time(day_min, day_max, sec_min, sec_max)
+        logger.info(f"将于 {next_sec}秒 后尝试主动发起对话...")
+        await asyncio.sleep(next_sec)
+        while (time.time() - chat.last_msg_time) < 7200:
+            wait_sec = random.randint(7200, 14400)
+            realtime = wait_sec + today_sec()
+            if realtime <= sec_max and realtime >= sec_min:
+                logger.info(f"最近两个小时已有过对话，将再等待 {wait_sec}秒 后尝试发起对话...")
+                await asyncio.sleep(wait_sec)
+            else:
+                next_day_sec = random_next_time(1, 1, sec_min, sec_max)
+                logger.info(f"最近两个小时已有过对话，且今天已经没有时间了，将再等待 {next_day_sec}秒 后尝试发起对话...")
+                await asyncio.sleep(next_day_sec)
+        scheduled_sessions.remove(chat_key)
+        logger.info("现在主动发起对话...")
+        await do_msg_response(
+            matcher=matcher,
+            trigger_text=f"由于已经有一段时间没有过对话了（约{math.ceil((time.time()-chat.last_msg_time)/3600)}个小时），现在你获得了一次主动发言机会！这是你的一次主动对话，请尝试一些新话题，又或者是继续之前的话题。",
+            trigger_userid=trigger_userid,
+            sender_name='[system]',
+            wake_up=True,
+            chat_type=chat_type,
+            is_tome=False,
+            chat_key=chat_key,
+            bot=bot,
+        )
+
+def today_sec():
+    t = time.localtime()
+    sec = t.tm_hour * 3600 + t.tm_min * 60 + t.tm_sec
+    return sec
+
+def random_next_time(dmin, dmax, smin, smax):
+    r_sec = random.randint(dmin, dmax) * 86400
+    r_sec += random.randint(smin, smax)
+    r_sec -= today_sec()
+    if r_sec < 0:
+        r_sec += 86400
+    return r_sec

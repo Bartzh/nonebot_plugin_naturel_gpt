@@ -528,7 +528,7 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
                 await matcher.send(MessageSegment.image(img))
             else:
                 #await matcher.send(f"{reply_prefix}{reply_text}")
-                await output_message(f"{reply_prefix}{reply_text}")
+                await output_message(f"{reply_prefix}{reply_text}", chat.preset_key)
         elif isinstance(reply, dict):
             for key in reply:   # 遍历回复内容类型字典
                 if not reply.get(key):
@@ -544,7 +544,7 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
                     if not reply_text.strip():
                         continue
                     #await matcher.send(f"{reply_prefix}{reply_text}")
-                    await output_message(f"{reply_prefix}{reply_text}")
+                    await output_message(f"{reply_prefix}{reply_text}", chat.preset_key)
 
 #                elif key == 'image': # 发送图片
 #                    await matcher.send(MessageSegment.image(file=reply_content or ''))
@@ -564,7 +564,7 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
 
                 elif key == 'code_block':  # 发送代码块
                     #await matcher.send(Message(reply_text))
-                    await output_message(reply_text)
+                    await output_message(reply_text, chat.preset_key)
 
                 elif key == 'memory':  # 记忆存储
                     logger.info(f"存储记忆: {reply_content}")
@@ -574,10 +574,10 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
                         if config.DEBUG_LEVEL > 0:
                             if memory.get('key') and memory.get('value'):
                                 #await matcher.send(f"[debug]: 记住了 {memory.get('key')} = {memory.get('value')}")
-                                await output_message(f"[debug]: 记住了 {memory.get('key')} = {memory.get('value')}")
+                                await output_message(f"[debug]: 记住了 {memory.get('key')} = {memory.get('value')}", chat.preset_key)
                             elif memory.get('key') and memory.get('value') is None:
                                 #await matcher.send(f"[debug]: 忘记了 {memory.get('key')}")
-                                await output_message(f"[debug]: 忘记了 {memory.get('key')}")
+                                await output_message(f"[debug]: 忘记了 {memory.get('key')}", chat.preset_key)
 
                 elif key == 'notify':  # 通知消息
                     if isinstance(reply_content, dict):
@@ -673,10 +673,10 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
                 is_tome=is_tome,
                 chat_key=chat_key
             )
-        elif 'auto_gen' not in loop_data or loop_data.get('auto_gen', True):
-            await auto_gen(chat_key=chat_key, trigger_userid=trigger_userid, chat_type=chat_type, screenshot=loop_data.get('auto_gen_screenshot', False))
-        elif 'auto_gen' in loop_data:
-            logger.info(f"{chat_key}对话已结束，但未设置自动生成，跳过...")
+    if 'auto_gen' not in loop_data or loop_data.get('auto_gen', True):
+        await auto_gen(chat_key=chat_key, trigger_userid=trigger_userid, chat_type=chat_type, screenshot=loop_data.get('auto_gen_screenshot', False))
+    else:
+        logger.info(f"{chat_key}对话已结束，但设置了不自动生成，跳过...")
 
     return
 
@@ -688,17 +688,17 @@ async def auto_gen(chat_key:str, trigger_userid:str, chat_type:str = 'private', 
         scheduled_sessions.append(chat_key)
         #day_min = 0
         #day_max = 5
-        sec_min = 1800
+        sec_min = 1200
         sec_max = 3600
         sleeptime = random.randint(sec_min, sec_max)
-        logger.info(f"将于 {sleeptime}s({time.strftime('%H:%M:%S', time.localtime(time.time() + sleeptime))}) 后尝试主动发起对话...")
+        logger.info(f"将于 {sleeptime}s 后({time.strftime('%H:%M:%S', time.localtime(time.time() + sleeptime))})尝试主动发起对话...")
         await asyncio.sleep(sleeptime)
         chat:Chat = ChatManager.instance.get_or_create_chat(chat_key=chat_key)
         while (time.time() - chat.last_msg_time) < 600:
             randomwait = random.randint(300, 600)
             #realtime = randomwait + today_sec()
             if True:#realtime <= sec_max and realtime >= sec_min:
-                logger.info(f"最近十分钟已有过对话，将再等待 {randomwait}s({time.strftime('%H:%M:%S', time.localtime(time.time() + randomwait))}) 后尝试发起对话...")
+                logger.info(f"最近十分钟已有过对话，将再等待 {randomwait}s 后({time.strftime('%H:%M:%S', time.localtime(time.time() + randomwait))})尝试发起对话...")
                 await asyncio.sleep(randomwait)
             #else:
             #    sleeptime2 = random_next_time(1, 1, sec_min, sec_max)

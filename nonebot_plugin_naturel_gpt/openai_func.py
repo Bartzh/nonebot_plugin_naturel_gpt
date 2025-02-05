@@ -221,7 +221,7 @@ class TextGenerator(Singleton["TextGenerator"]):
             image_url = custom.get('image_url', '')
             if image_url == '':
                 return '获取不到 image_url', False
-            if image_url.startswith('http'):
+            elif image_url.startswith('http'):
                 try:
                     url_pattern = r"https?://[^\s]+"
                     url_match = re.search(url_pattern, image_url)
@@ -229,7 +229,7 @@ class TextGenerator(Singleton["TextGenerator"]):
                     return f"图像地址解析错误: {e}", False
             elif image_url.startswith('data:image/'):
                 pass
-            else:
+            elif re.match(r'^(?:(?:[a-zA-Z]:|\.{1,2})?[\\/](?:[^\\?/*|<>:"]+[\\/])*)(?:(?:[^\\?/*|<>:"]+?)(?:\.[^.\\?/*|<>:"]+)?)?$', image_url):
                 try:
                     with open(image_url, "rb") as image_file:
                         image_data = image_file.read()
@@ -245,7 +245,7 @@ class TextGenerator(Singleton["TextGenerator"]):
                 image_url = f"data:{mime_type};base64,{base64_image}"
 
             if prompt == '':
-                prompt = '这张图里有什么？'
+                prompt = '这张图里有些什么？'
             response = openai.ChatCompletion.create(
                 model='qwen-vl-max-latest',#self.config['model'],
                 messages=[

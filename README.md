@@ -1,6 +1,6 @@
 <!-- markdownlint-disable MD033 MD041 -->
 
-这个仓库做了：
+这个fork做了：
 1. 从nonebot剥离
 2. 独立运行FastAPI（暂需另一个http server作后端接收消息）
 3. 另接入多模态模型，可识别图像

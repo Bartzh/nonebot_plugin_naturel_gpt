@@ -8,6 +8,8 @@ import aiohttp
 
 from logger import logger 
 
+from plyer import notification # type: ignore
+
 #from nonebot.matcher import Matcher
 #from nonebot.adapters import Bot
 #from nonebot.adapters import Event
@@ -198,11 +200,17 @@ def md5(s):
     m.update(s.encode("utf-8"))
     return m.hexdigest()
 
-async def output_message(content):
+async def output_message(content, sender:str = 'system'):
     """输出消息的统一方式"""
     if type(content) == str:
         #logger.info(content)
         try:
+            notification.notify(
+                title=sender,
+                message=content[0:23]+'...',
+                #timeout = 5,
+                app_name='Naturel GPT'
+            )
             await async_fetch(
                 url='http://127.0.0.1:36264/input',
                 method="post",
@@ -220,7 +228,7 @@ async def take_screenshot() -> str:
         with mss.mss() as sct:
             sct.__init__(with_cursor=True)
             #monitor = sct.monitors[0]
-            screenshot = sct.shot(output="data/naturel_gpt/logs/screenshot.png")
+            screenshot = sct.shot(output="./data/naturel_gpt/logs/screenshot.png")
             logger.info(f"屏幕截图已保存到 {screenshot}")
             sct.close()
             return(screenshot)

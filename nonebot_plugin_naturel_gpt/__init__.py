@@ -92,9 +92,6 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/chat")
 async def chat(request: Request):
-    #json_post_raw = await request.json()
-    #json_post = json.dumps(json_post_raw)
-    #json_post_list = json.loads(json_post)
     json_post_list = await request.json()
     prompt = json_post_list.get('prompt')
     image = json_post_list.get('image')
@@ -120,9 +117,6 @@ async def chat(request: Request):
 
 @app.post("/get/chat/history")
 async def get_chat_history(request: Request):
-    #json_post_raw = await request.json()
-    #json_post = json.dumps(json_post_raw)
-    #json_post_list = json.loads(json_post)
     json_post_list = await request.json()
     key = json_post_list.get('chat_key')
     now = datetime.datetime.now()

@@ -14,7 +14,7 @@ from .command_func import cmd
 from .matcher import *
 
 
-permission_check_func:Callable[[Matcher, Event, Bot, Optional[str], str], Awaitable[Tuple[bool,Optional[str]]]]
+permission_check_func:Callable[[str, str, Optional[str], str], Awaitable[Tuple[bool,Optional[str]]]]
 
 if config.ENABLE_MC_CONNECT:
     try:

@@ -30,7 +30,7 @@ import mimetypes, math
 #    config.ENABLE_MSG_TO_IMG = False
 #    config.ENABLE_COMMAND_TO_IMG = False
 
-#permission_check_func:Callable[[Matcher, Event, Bot, Optional[str], str], Awaitable[Tuple[bool,Optional[str]]]]
+permission_check_func:Callable[[str, str, Optional[str], str], Awaitable[Tuple[bool,Optional[str]]]]
 
 scheduled_sessions = []
 
@@ -232,6 +232,71 @@ async def _(matcher_:Matcher, event: MessageEvent, bot:Bot, arg: Message = Comma
 """ ======== 消息响应方法 ======== """
 async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, chat_type: str, chat_key: str, sender_name: Optional[str] = None, wake_up: bool = False, loop_times=0, loop_data={}, trigger_image: Optional[str] = None, trigger_image_prompt: str = ''): # type: ignore
     """消息响应方法"""
+
+    global is_progress  # 是否产生编辑进度
+    if trigger_text.startswith('/rg') or trigger_text.startswith('/人格') or trigger_text.startswith('/人格设定') or trigger_text.startswith('/identity'):
+        is_progress = False
+        # 判断是否是禁止使用的用户
+        if trigger_userid in config.FORBIDDEN_USERS:
+            #await identity.finish(f"您的账号({event.get_user_id()})已被禁用，请联系管理员。")
+            await output_message(f"您的账号({trigger_userid})已被禁用，请联系管理员。")
+            return
+
+        chat:Chat = ChatManager.instance.get_or_create_chat(chat_key=chat_key)
+        chat_presets_dict = chat.chat_data.preset_datas
+
+        #raw_cmd:str = arg.extract_plain_text()
+        if trigger_text.startswith('/rg'):
+            raw_cmd = trigger_text[3:]
+        elif trigger_text.startswith('/人格'):
+            raw_cmd = trigger_text[3:]
+        elif trigger_text.startswith('/人格设定'):
+            raw_cmd = trigger_text[5:]
+        elif trigger_text.startswith('/identity'):
+            raw_cmd = trigger_text[9:]
+        if config.DEBUG_LEVEL > 0: logger.info(f"接收到指令: {raw_cmd} | 来源: {chat_key}")
+
+        '\n'.join([f'  -> {k + " (当前)" if k == chat.preset_key else k}' for k in chat_presets_dict.keys()])
+
+        # 执行命令前先检查权限
+        (permit_success, permit_msg) = await permission_check_func(trigger_userid,chat_type,raw_cmd,'cmd')
+        if not permit_success:
+            #await identity.finish(permit_msg if permit_msg else "对不起！你没有权限进行此操作 ＞﹏＜")
+            await output_message(permit_msg if permit_msg else "对不起！你没有权限进行此操作 ＞﹏＜")
+            return
+
+        # 执行命令 *取消注释下列行以启用新的命令执行器*
+        res = cmd.execute(
+            chat=chat,
+            command='rg'+ raw_cmd,
+            chat_presets_dict=chat_presets_dict,
+        )
+
+        if res:
+            if res.get('msg'):     # 如果有返回消息则发送
+                if False:#config.ENABLE_COMMAND_TO_IMG:
+                    pass
+                    #img = await text_to_img(res.get('msg')) # type: ignore
+                    #await identity.send(MessageSegment.image(img))
+                else:
+                    ##await identity.send(str(res.get('msg')))
+                    await output_message(str(res.get('msg')))
+            elif res.get('error'):
+                #await identity.finish(f"执行命令时出现错误: {res.get('error')}")  # 如果有返回错误则发送s
+                await output_message(f"执行命令时出现错误: {res.get('error')}")
+                return
+
+        else:
+            #await identity.finish("输入的命令好像有点问题呢... 请检查下再试试吧！ ╮(>_<)╭")
+            await output_message("输入的命令好像有点问题呢... 请检查下再试试吧！ ╮(>_<)╭")
+            return
+
+        if res.get('is_progress'): # 如果有编辑进度，进行数据保存
+            # 更新所有全局预设到会话预设中
+            if config.DEBUG_LEVEL > 0: logger.info(f"用户: {trigger_userid} 进行了人格预设编辑: {cmd}")
+            PersistentDataManager.instance.save_to_file()  # 保存数据
+
+        return
 
     sender_name = sender_name or 'anonymous'
     chat:Chat = ChatManager.instance.get_or_create_chat(chat_key=chat_key)

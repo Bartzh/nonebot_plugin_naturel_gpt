@@ -26,12 +26,12 @@ import asyncio
 from contextlib import asynccontextmanager
 
 
-#def set_permission_check_func(callback:Callable[[Matcher, Event, Bot, str, str], Awaitable[Tuple[bool,Optional[str]]]]):
-#    """设置Matcher的权限检查函数"""
-#    matcher.permission_check_func = callback
+def set_permission_check_func(callback:Callable[[str, str, str, str], Awaitable[Tuple[bool,Optional[str]]]]):
+    """设置Matcher的权限检查函数"""
+    matcher.permission_check_func = callback
  
 # 设置默认权限检查函数，有需求时可以覆盖
-#set_permission_check_func(utils.default_permission_check_func)
+set_permission_check_func(utils.default_permission_check_func)
 
 """ ======== 读取历史记忆数据 ======== """
 PersistentDataManager.instance.load_from_file()

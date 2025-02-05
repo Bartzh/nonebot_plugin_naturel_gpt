@@ -2,19 +2,22 @@ import os
 import pickle
 import time
 import json
-from nonebot import get_driver
+#from nonebot import get_driver
+
+import atexit
+
 from typing import Any, Optional, Set, Dict, List, Tuple, overload
 from typing_extensions import Self, override
 from dataclasses import dataclass, field
 
-from .logger import logger
+from logger import logger
 
-from .singleton import Singleton
-from .config import config, PresetConfig
-from .store import StoreSerializable, StoreEncoder
+from singleton import Singleton
+from config import config, PresetConfig
+from store import StoreSerializable, StoreEncoder
 
 
-driver = get_driver()
+#driver = get_driver()
 
 
 @dataclass
@@ -47,7 +50,8 @@ class PresetData(StoreSerializable):
     @classmethod
     def create_from_config(cls, preset_config: PresetConfig):
         """从PresetConfig创建一个PresetData实例"""
-        preset_data = PresetData(**preset_config.dict())
+        #preset_data = PresetData(**preset_config.dict())
+        preset_data = PresetData(**preset_config.model_dump())
         return preset_data
 
     def reset_to_default(self, preset_config: Optional[PresetConfig]):
@@ -291,9 +295,11 @@ class PersistentDataManager(Singleton["PersistentDataManager"]):
             return chat_data
 
 
-@driver.on_shutdown
-async def _():
+#@driver.on_shutdown
+def _():
     # 保证正常结束时可以进行完整存档
     logger.info("正在保存数据，完成前请勿强制结束！")
     PersistentDataManager.instance.save_to_file(must_save=True)
     logger.info("保存完成！")
+
+atexit.register(_)

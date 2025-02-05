@@ -3,7 +3,8 @@ import time
 import os
 import sys
 import shutil
-import nonebot
+#import nonebot
+from logger import logger
 from typing import TYPE_CHECKING, Any, Dict, Type, Union
 
 if TYPE_CHECKING:
@@ -14,8 +15,8 @@ def __path(record: "Record"):
     record["name"] = "NG聊天扩展"
 
 
-logger = nonebot.logger.bind()
-logger = logger.patch(__path)
+#logger = nonebot.logger.bind()
+#logger = logger.patch(__path)
 
 
 # 扩展插件基类

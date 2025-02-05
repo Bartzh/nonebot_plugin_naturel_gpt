@@ -4,22 +4,29 @@ import asyncio
 import requests
 import aiohttp
 
-from nonebot.matcher import Matcher
-from nonebot.adapters import Bot
-from nonebot.adapters import Event
-from nonebot.rule import Rule
-from nonebot.permission import SUPERUSER
-from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER
-from nonebot.adapters.onebot.v11 import Message, MessageEvent, PrivateMessageEvent, GroupMessageEvent, MessageSegment, GroupIncreaseNoticeEvent
+#import warnings
 
-from .config import config
+from logger import logger 
 
-try:
-    import ujson as json
-except ImportError:
-    import json
+#from nonebot.matcher import Matcher
+#from nonebot.adapters import Bot
+#from nonebot.adapters import Event
+#from nonebot.rule import Rule
+#from nonebot.permission import SUPERUSER
+#from nonebot.adapters.onebot.v11.permission import GROUP_ADMIN, GROUP_OWNER
+#from nonebot.adapters.onebot.v11 import Message, MessageEvent, PrivateMessageEvent, GroupMessageEvent, MessageSegment, GroupIncreaseNoticeEvent
 
-def to_me():
+from config import config
+
+#try:
+#    import ujson as json
+#except ImportError:
+#    import json
+
+import json, mss # type: ignore
+
+'''def to_me():
+    warnings.warn("this function is deprecated", DeprecationWarning)
     if config.NG_TO_ME:
         from nonebot.rule import to_me
 
@@ -31,6 +38,7 @@ def to_me():
     return Rule(_to_me)
 
 async def default_permission_check_func(matcher:Matcher, event: Event, bot:Bot, cmd:Optional[str], type:str = 'cmd') -> Tuple[bool, Optional[str]]:
+    warnings.warn("this function is deprecated", DeprecationWarning)
     """默认权限检查函数"""
     if not cmd: # 非命令调用
         return (True, None)
@@ -62,6 +70,7 @@ async def default_permission_check_func(matcher:Matcher, event: Event, bot:Bot, 
         return (True, None)
     
 async def gen_chat_text(event: MessageEvent, bot:Bot) -> Tuple[str, bool]:
+    warnings.warn("this function is deprecated", DeprecationWarning)
     """生成合适的会话消息内容(eg. 将cq at 解析为真实的名字)"""
     if not isinstance(event, GroupMessageEvent):
         return event.get_plaintext(), False
@@ -85,6 +94,7 @@ async def gen_chat_text(event: MessageEvent, bot:Bot) -> Tuple[str, bool]:
     
 
 async def get_user_name(event: Union[MessageEvent, GroupIncreaseNoticeEvent], bot:Bot, user_id:int) -> Optional[str]:
+    warnings.warn("this function is deprecated", DeprecationWarning)
     """获取QQ用户名，如果GROUP_CARD为Ture优先群名片"""
     if isinstance(event, GroupMessageEvent) and event.sub_type == 'anonymous' and event.anonymous: # 匿名消息
         return f'[匿名]{event.anonymous.name}'
@@ -101,7 +111,7 @@ async def get_user_name(event: Union[MessageEvent, GroupIncreaseNoticeEvent], bo
         user_name = user_name.split('-', 1)[1].replace('-', '').strip()
         
     return user_name
-
+'''
 async def translate(text:str, from_:str="auto", to_:str="en") -> str:
     """翻译"""
     loop = asyncio.get_event_loop()
@@ -187,3 +197,32 @@ def md5(s):
     m = hashlib.md5()
     m.update(s.encode("utf-8"))
     return m.hexdigest()
+
+async def output_message(content):
+    """输出消息的统一方式"""
+    if type(content) == str:
+        #logger.info(content)
+        try:
+            await async_fetch(
+                url='http://127.0.0.1:36264/input',
+                method="post",
+                headers={"Content-Type": "application/json"},
+                data={"message": content}
+            )
+            return True
+        except Exception as e:
+            logger.error(f"输出消息失败: {e}")
+            return False
+    return False
+
+async def take_screenshot() -> str:
+    try:
+        with mss.mss() as sct:
+            sct.__init__(with_cursor=True)
+            #monitor = sct.monitors[0]
+            screenshot = sct.shot(output="data/naturel_gpt/logs/screenshot.png")
+            logger.info(f"屏幕截图已保存到 {screenshot}")
+            sct.close()
+            return(screenshot)
+    except Exception as e:
+        logger.error(f"截图过程中发生错误: {e}")

@@ -1,11 +1,13 @@
 from typing import Dict, Optional
-from .utils import fetch, md5
-from .config import config
+from utils import fetch, md5
+from config import config
 
-try:
-    import ujson as json
-except ImportError:
-    import json
+#try:
+#    import ujson as json
+#except ImportError:
+#    import json
+
+import json
 
 
 def check_presethub_connection():

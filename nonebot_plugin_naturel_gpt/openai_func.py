@@ -1,14 +1,15 @@
 import re
 import os
 from typing import Tuple, Dict
-from .logger import logger
-from nonebot.utils import run_sync
-from tiktoken import Encoding, encoding_for_model
+from logger import logger
+#from nonebot.utils import run_sync
+from tiktoken import Encoding, encoding_for_model # type: ignore
 
+import base64, mimetypes
 
-import openai
+import openai # type: ignore
 # from transformers import GPT2TokenizerFast
-from .singleton import Singleton
+from singleton import Singleton
 
 enc_cache: Dict[str, Encoding] = {}
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -36,13 +37,15 @@ class TextGenerator(Singleton["TextGenerator"]):
         if base_url:
             openai.api_base = base_url
     
-    @run_sync
-    def get_response(self, prompt, type: str = 'chat', custom: dict = {}) -> Tuple[str, bool]:
+#    @run_sync
+    async def get_response(self, prompt, type: str = 'chat', custom: dict = {}) -> Tuple[str, bool]:
         """获取文本生成"""
         res, success = ('', False)
         for _ in range(len(self.api_keys)):
             if type == 'chat':
                 res, success = self.get_chat_response(self.api_keys[self.key_index], prompt, custom)
+            elif type == 'image':
+                res, success = self.get_image_response(self.api_keys[self.key_index], prompt, custom)
             elif type == 'summarize':
                 res, success = self.get_summarize_response(self.api_keys[self.key_index], prompt, custom)
             elif type == 'impression':
@@ -206,6 +209,89 @@ class TextGenerator(Singleton["TextGenerator"]):
             #         presence_penalty=0
             #     )
             #     res = response['choices'][0]['text'].strip() # type: ignore
+            return res, True
+        except Exception as e:
+            return f"请求 OpenAi Api 时发生错误: {e}", False
+
+    def get_image_response(self, key:str, prompt:str = '', custom:dict = {})->Tuple[str, bool]:
+        """图像描述生成"""
+        openai.api_key = key
+        try:
+            #if self.config['model'].startswith('gpt-3.5-turbo') or self.config['model'].startswith('gpt-4'):
+            image_url = custom.get('image_url', '')
+            if image_url == '':
+                return '获取不到 image_url', False
+            if image_url.startswith('http'):
+                try:
+                    url_pattern = r"https?://[^\s]+"
+                    url_match = re.search(url_pattern, image_url)
+                except Exception as e:
+                    return f"图像地址解析错误: {e}", False
+            elif image_url.startswith('data:image/'):
+                pass
+            else:
+                try:
+                    with open(image_url, "rb") as image_file:
+                        image_data = image_file.read()
+                        # 猜测图片类型
+                        mime_type, _ = mimetypes.guess_type(image_url)
+                        if not mime_type or not mime_type.startswith('image/'):
+                            return f"文件不是图像: {image_url}", False
+                        #image_format = mime_type.split('/')[-1]
+                except Exception as e:#FileNotFoundError:
+                    return f"图像路径错误: {e}", False
+                # 将图像数据编码为Base64
+                base64_image = base64.b64encode(image_data).decode('utf-8')
+                image_url = f"data:{mime_type};base64,{base64_image}"
+
+            if prompt == '':
+                prompt = '这张图里有什么？'
+            response = openai.ChatCompletion.create(
+                model='qwen-vl-max-latest',#self.config['model'],
+                messages=[
+                    {
+                    "role": "user",
+                    "content": [
+                        {
+                        "type": "text",
+                        "text": prompt
+                        },
+                        {
+                        "type": "image_url",
+                        "image_url": {
+                            "url": image_url
+                        }
+                        }
+                    ]
+                    }
+                ],
+                temperature=0.6,
+                max_tokens=self.config['max_tokens'],
+                top_p=1,
+                #frequency_penalty=self.config['frequency_penalty'],
+                presence_penalty=0.2,
+                #timeout=self.config.get('timeout', 30),
+                #stop=[f"\n{custom.get('bot_name', 'AI')}:", f"\n{custom.get('sender_name', 'Human')}:"]
+            )
+            res:str = ''
+            for choice in response.choices: # type: ignore
+                res += choice.message.content
+            res = res.strip()
+            # 去掉头尾引号（如果有）
+            if res.startswith('"') and res.endswith('"'):
+                res = res[1:-1]
+            if res.startswith("'") and res.endswith("'"):
+                res = res[1:-1]
+            # 去掉可能存在的开头起始标志
+            #if res.startswith(f"{custom.get('bot_name', 'AI')}:"):
+            #    res = res[len(f"{custom.get('bot_name', 'AI')}:"):]
+            # 去掉可能存在的开头起始标志 (中文)
+            #if res.startswith(f"{custom.get('bot_name', 'AI')}："):
+            #    res = res[len(f"{custom.get('bot_name', 'AI')}："):]
+            # 替换多段回应中的回复起始标志
+            #res = res.replace(f"\n\n{custom.get('bot_name', 'AI')}:", "*;")
+            # 正则匹配去掉多余的诸如 "[hh:mm:ss aa] bot_name:" 的形式
+            #res = re.sub(r"\[\d{2}:\d{2}:\d{2} [AP]M\] ?" + custom.get('bot_name', 'AI') + r":", "", res)
             return res, True
         except Exception as e:
             return f"请求 OpenAi Api 时发生错误: {e}", False

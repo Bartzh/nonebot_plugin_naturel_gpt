@@ -2,7 +2,7 @@
 import re
 from typing import Type
 from nonebot import on_message, on_notice
-from .logger import logger
+from logger import logger
 from nonebot.matcher import Matcher
 
 from .config import *

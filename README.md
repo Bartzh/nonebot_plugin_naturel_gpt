@@ -1,5 +1,13 @@
 <!-- markdownlint-disable MD033 MD041 -->
 
+这个仓库做了：
+1. 从nonebot剥离
+2. 独立运行FastAPI（暂需另一个http server作后端接收消息）
+3. 另接入多模态模型，可识别图像
+4. 随机主动对话，同时可根据屏幕截图交流
+
+---
+
 <div align="center">
   <a href="https://v2.nonebot.dev/store"><img src="./image/README/nbp_logo.png" width="180" height="180" alt="NoneBotPluginLogo"></a>
   <br>

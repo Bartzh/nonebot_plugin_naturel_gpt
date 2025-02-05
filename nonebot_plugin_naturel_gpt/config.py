@@ -1,15 +1,15 @@
 ﻿from typing import Any, Dict, List
-from nonebot.config import Config as NBConfig
+#from nonebot.config import Config as NBConfig
 from pydantic import BaseModel, Extra
-from nonebot import get_driver
-from .logger import logger
+#from nonebot import get_driver
+from logger import logger
 import yaml
 from pathlib import Path
 
-class GlobalConfig(NBConfig, extra=Extra.ignore):
-    """Plugin Config Here"""
-    ng_config_path: str = "config/naturel_gpt_config.yml"
-    ng_dev_mode: bool = False
+#class GlobalConfig(NBConfig, extra=Extra.ignore):
+#    """Plugin Config Here"""
+#    ng_config_path: str = "config/naturel_gpt_config.yml"
+#    ng_dev_mode: bool = False
 
 class PresetConfig(BaseModel, extra=Extra.ignore):
     """人格预设配置项"""
@@ -293,9 +293,9 @@ CONFIG_TEMPLATE = {
     'DEBUG_LEVEL': 0,  # debug level, [0, 1, 2], 0 为关闭，等级越高debug信息越详细
 }
 
-driver = get_driver()
-global_config = GlobalConfig.parse_obj(driver.config)
-config_path = global_config.ng_config_path
+#driver = get_driver()
+#global_config = GlobalConfig.parse_obj(driver.config)
+config_path = "config/naturel_gpt_config.yml" #global_config.ng_config_path
 config:Config = None # type: ignore
 
 def get_config() ->Config:
@@ -361,7 +361,7 @@ def reload_config():
 if not Path("config").exists():
     Path("config").mkdir()
 
-if global_config.ng_dev_mode:  # 开发模式下不读取原配置文件，直接使用模板覆盖原配置文件
+if False: #global_config.ng_dev_mode:  # 开发模式下不读取原配置文件，直接使用模板覆盖原配置文件
     with open(config_path, 'w', encoding='utf-8') as f:
         yaml.dump(CONFIG_TEMPLATE, f, allow_unicode=True)
 else:

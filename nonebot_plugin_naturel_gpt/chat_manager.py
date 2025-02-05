@@ -1,8 +1,8 @@
 ﻿from typing import Dict, Optional, Tuple
-from .singleton import Singleton
-from .chat import Chat
-from .persistent_data_manager import PersistentDataManager
-from .config import *
+from singleton import Singleton
+from chat import Chat
+from persistent_data_manager import PersistentDataManager
+from config import *
 
 class ChatManager(Singleton["ChatManager"]):
     """全局会话管理器"""

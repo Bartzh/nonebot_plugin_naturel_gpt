@@ -3,7 +3,7 @@ from pathlib import Path
 import markdown
 from nonebot import logger, require
 
-from .config import config
+from config import config
 
 require("nonebot_plugin_htmlrender")
 from nonebot_plugin_htmlrender.data_source import (  # noqa: E402

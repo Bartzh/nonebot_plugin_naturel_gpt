@@ -4,42 +4,43 @@ import re
 import time
 import os
 from typing import Awaitable, List, Dict, Callable, Optional, Set, Tuple, Type
-from nonebot import on_command, on_message, on_notice
-from .logger import logger
-from nonebot.params import CommandArg
-from nonebot.matcher import Matcher
-from nonebot.adapters import Bot, Event
-from nonebot.adapters.onebot.v11 import Message, MessageEvent, PrivateMessageEvent, GroupMessageEvent, MessageSegment, GroupIncreaseNoticeEvent
+#from nonebot import on_command, on_message, on_notice
+from logger import logger
+#from nonebot.params import CommandArg
+#from nonebot.matcher import Matcher
+#from nonebot.adapters import Bot, Event
+#from nonebot.adapters.onebot.v11 import Message, MessageEvent, PrivateMessageEvent, GroupMessageEvent, MessageSegment, GroupIncreaseNoticeEvent
 
-from .config import *
-from .utils import *
-from .chat import Chat
-from .persistent_data_manager import PersistentDataManager
-from .chat_manager import ChatManager
-from .Extension import global_extensions
-from .openai_func import TextGenerator
-from .command_func import cmd
-from .MCrcon.mcrcon import MCRcon   # fork from: https://github.com/Uncaught-Exceptions/MCRcon
+from config import *
+from utils import *
+from chat import Chat
+from persistent_data_manager import PersistentDataManager
+from chat_manager import ChatManager
+from Extension import global_extensions
+from openai_func import TextGenerator
+from command_func import cmd
+#from MCrcon.mcrcon import MCRcon   # fork from: https://github.com/Uncaught-Exceptions/MCRcon
 
-import math
+import mimetypes, math
 
-try:
-    from .text_to_image import md_to_img, text_to_img
-except ImportError:
-    logger.warning('未安装 nonebot_plugin_htmlrender 插件，无法使用 text_to_img')
-    config.ENABLE_MSG_TO_IMG = False
-    config.ENABLE_COMMAND_TO_IMG = False
+#try:
+#    from .text_to_image import md_to_img, text_to_img
+#except ImportError:
+#    logger.warning('未安装 nonebot_plugin_htmlrender 插件，无法使用 text_to_img')
+#    config.ENABLE_MSG_TO_IMG = False
+#    config.ENABLE_COMMAND_TO_IMG = False
+
+#permission_check_func:Callable[[Matcher, Event, Bot, Optional[str], str], Awaitable[Tuple[bool,Optional[str]]]]
 
 scheduled_sessions = []
 
-permission_check_func:Callable[[Matcher, Event, Bot, Optional[str], str], Awaitable[Tuple[bool,Optional[str]]]]
 is_progress:bool = False
 
 msg_sent_set:Set[str] = set() # bot 自己发送的消息
 
 """消息发送钩子，用于记录自己发送的消息(默认不开启，只有在用户自定义了message_sent事件之后message_sent事件才会被发送到 on_message 回调)"""
 # @Bot.on_called_api
-async def handle_group_message_sent(bot: Bot, exception: Optional[Exception], api: str, data: Dict[str, Any], result: Any):
+'''async def handle_group_message_sent(bot: Bot, exception: Optional[Exception], api: str, data: Dict[str, Any], result: Any):
     global msg_sent_set
     if result and (api in ['send_msg', 'send_group_msg', 'send_private_msg']):
         msg_id = result.get('message_id', None)
@@ -170,7 +171,7 @@ async def _(matcher_:Matcher, event: GroupIncreaseNoticeEvent, bot:Bot):  # even
 
 """ ======== 注册指令响应器 ======== """
 # QQ:人格设定指令 用于设定人格的相关参数
-identity:Type[Matcher] = on_command("identity", aliases={"人格设定", "人格", "rg"}, rule=to_me(), priority=config.NG_MSG_PRIORITY - 1, block=True)
+identity:Type[Matcher] = on_command("identity", aliases={"人格设定", "人格", "rg"}, rule=True, priority=config.NG_MSG_PRIORITY - 1, block=True)
 @identity.handle()
 async def _(matcher_:Matcher, event: MessageEvent, bot:Bot, arg: Message = CommandArg()):
     global is_progress  # 是否产生编辑进度
@@ -226,11 +227,10 @@ async def _(matcher_:Matcher, event: MessageEvent, bot:Bot, arg: Message = Comma
         if config.DEBUG_LEVEL > 0: logger.info(f"用户: {event.get_user_id()} 进行了人格预设编辑: {cmd}")
         PersistentDataManager.instance.save_to_file()  # 保存数据
     return
-
+'''
 
 """ ======== 消息响应方法 ======== """
-async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, matcher: Type[Matcher], chat_type: str, chat_key: str, sender_name: Optional[str] = None, wake_up: bool = False, loop_times=0, loop_data={}, bot:Bot = None): # type: ignore
-    global scheduled_sessions
+async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, chat_type: str, chat_key: str, sender_name: Optional[str] = None, wake_up: bool = False, loop_times=0, loop_data={}, trigger_image: Optional[str] = None, trigger_image_prompt: str = ''): # type: ignore
     """消息响应方法"""
 
     sender_name = sender_name or 'anonymous'
@@ -246,6 +246,29 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
         if str(w).lower() in trigger_text.lower():
             if config.DEBUG_LEVEL > 0: logger.info(f"检测到违禁词 {w}，拒绝处理...")
             return
+
+    # 检测是否包含图像，图像是否有效
+    if trigger_image:
+        if trigger_image.startswith('http'):
+            try:
+                url_pattern = r"https?://[^\s]+"
+                url_match = re.search(url_pattern, trigger_image)
+            except Exception as e:
+                logger.error(f"图像地址解析错误: {e}")
+                return
+        elif trigger_image.startswith('data:image/'):
+            pass
+        else:
+            try:
+                with open(trigger_image, "rb") as image_file:
+                    image_data = image_file.read()
+                    mime_type, _ = mimetypes.guess_type(trigger_image)
+                    if not mime_type or not mime_type.startswith('image/'):
+                        logger.error(f"文件不是图像: {trigger_image}")
+                        return
+            except Exception as e:
+                logger.error(f"图像路径错误: {e}")
+                return
 
     # 唤醒词检测
     for w in config.WORD_FOR_WAKE_UP:
@@ -264,7 +287,8 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
                 chat.change_presettings(preset_key)
                 logger.info(f"检测到 {preset_key} 的唤醒词，切换到 {preset_key} 的人格")
                 if chat_type != 'server':
-                    await matcher.send(f'[NG] 已切换到 {preset_key} (￣▽￣)-ok !')
+                    #await matcher.send(f'[NG] 已切换到 {preset_key} (￣▽￣)-ok !')
+                    await output_message(f'[NG] 已切换到 {preset_key} (￣▽￣)-ok !')
                 wake_up = True
                 break
 
@@ -292,12 +316,58 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
     
     wake_up = False # 进入对话流程，重置唤醒状态
 
+    sta_time:float = time.time()
+
+    chat.update_gen_time()  # 更新上次生成时间
+    image_time_before_request = time.time()
+
+    tg = TextGenerator.instance
+
     # 记录对用户的对话信息
     await chat.update_chat_history_row_for_user(sender=sender_name, msg=trigger_text, userid=trigger_userid, username=sender_name, require_summary=False)
 
     if chat.preset_key != current_preset_key:
         if config.DEBUG_LEVEL > 0: logger.warning(f'等待OpenAI请求返回的过程中人格预设由[{current_preset_key}]切换为[{chat.preset_key}],当前消息不再继续响应.1')
         return
+    
+    if trigger_image:
+        # 若有输入图像，使用多模态模型对图像进行描述
+        image_res, image_success = await tg.get_response(prompt=trigger_image_prompt, type='image', custom={'image_url': trigger_image})
+        if not image_success:  # 如果生成对话结果失败，则直接返回
+            logger.warning("生成图像描述失败，跳过处理...")
+            #await matcher.finish(image_res)
+            await output_message(image_res)
+            return
+        
+        # 如果生成对话结果过程中启动了新的消息生成，则放弃本次生成结果
+        if chat.last_gen_time > image_time_before_request:
+            logger.warning("生成图像描述过程中启动了新的消息生成，放弃本次生成结果...")
+            return
+
+        # 输出对话原始响应结果
+        if config.DEBUG_LEVEL > 0: logger.info(f"图像描述原始回应: {image_res}")
+
+        if time.time() - image_time_before_request > config.OPENAI_TIMEOUT:
+            logger.warning(f'图像描述OpenAI响应超过timeout值[{config.OPENAI_TIMEOUT}]，停止处理')
+            return
+
+        if chat.preset_key != current_preset_key:
+            if config.DEBUG_LEVEL > 0: logger.warning(f'图像描述等待OpenAI响应返回的过程中人格预设由[{current_preset_key}]切换为[{chat.preset_key}],当前消息不再继续处理.2')
+            return
+
+        image_res = f'[Here is an image and below is the image description]\n{image_res}'
+
+        await chat.update_chat_history_row(sender='[image_analyzer]', msg=image_res, require_summary=False, record_time=False)
+
+        if chat.preset_key != current_preset_key:
+            if config.DEBUG_LEVEL > 0: logger.warning(f'等待OpenAI请求返回的过程中人格预设由[{current_preset_key}]切换为[{chat.preset_key}],当前消息不再继续响应.1')
+            return
+
+        await chat.update_chat_history_row_for_user(sender='image_analyzer', msg=image_res, userid=trigger_userid, username=sender_name, require_summary=False)
+
+        if chat.preset_key != current_preset_key:
+            if config.DEBUG_LEVEL > 0: logger.warning(f'等待OpenAI请求返回的过程中人格预设由[{current_preset_key}]切换为[{chat.preset_key}],当前消息不再继续响应.1')
+            return
     
     # 节流判断 接收到消息后等待一段时间，如果在这段时间内再次收到消息，则跳过响应处理
     # 效果表现为：如果在一段时间内连续收到消息，则只响应最后一条消息
@@ -317,8 +387,6 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
     # 兴趣值会影响回复的速度，兴趣值越高，回复速度越快
     # 发言概率贡献比例 = (随机值: 10% + 话题参与度: 50% + 兴趣值: 40%) * 发言几率基数(0.01~1.0)
 
-    sta_time:float = time.time()
-
     # 生成对话 prompt 模板
     prompt_template = chat.get_chat_prompt_template(userid=trigger_userid, chat_type=chat_type)
     # 生成 log 输出用的 prompt 模板
@@ -332,11 +400,13 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
 
     chat.update_gen_time()  # 更新上次生成时间
     time_before_request = time.time()
-    tg = TextGenerator.instance
+
     raw_res, success = await tg.get_response(prompt=prompt_template, type='chat', custom={'bot_name': chat.preset_key, 'sender_name': sender_name})  # 生成对话结果
     if not success:  # 如果生成对话结果失败，则直接返回
         logger.warning("生成对话结果失败，跳过处理...")
-        await matcher.finish(raw_res)
+        #await matcher.finish(raw_res)
+        await output_message(raw_res)
+        return
 
     # 如果生成对话结果过程中启动了新的消息生成，则放弃本次生成结果
     if chat.last_gen_time > time_before_request:
@@ -390,6 +460,7 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
         reply_list.append(talk_res)
 
     # if config.DEBUG_LEVEL > 0: logger.info("分割响应结果: " + str(reply_list))
+    #raw_res += f"/#analyzeimage&{raw_res}#/"
 
     # 重置所有扩展调用次数
     for ext_name in global_extensions.keys():
@@ -452,11 +523,12 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
             if re.match(r'^[^\u4e00-\u9fa5\w]{1}$', reply_text) or len(reply_text) < 1:
                 if config.DEBUG_LEVEL > 0: logger.info(f"检测到纯符号或空文本: {reply_text}，跳过发送...")
                 continue
-            if config.ENABLE_MSG_TO_IMG:
+            if False: #config.ENABLE_MSG_TO_IMG:
                 img = await md_to_img(reply_text)
                 await matcher.send(MessageSegment.image(img))
             else:
-                await matcher.send(f"{reply_prefix}{reply_text}")
+                #await matcher.send(f"{reply_prefix}{reply_text}")
+                await output_message(f"{reply_prefix}{reply_text}")
         elif isinstance(reply, dict):
             for key in reply:   # 遍历回复内容类型字典
                 if not reply.get(key):
@@ -471,26 +543,28 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
                         continue
                     if not reply_text.strip():
                         continue
-                    await matcher.send(f"{reply_prefix}{reply_text}")
+                    #await matcher.send(f"{reply_prefix}{reply_text}")
+                    await output_message(f"{reply_prefix}{reply_text}")
 
-                elif key == 'image': # 发送图片
-                    await matcher.send(MessageSegment.image(file=reply_content or ''))
-                    logger.info(f"回复图片消息: {reply_content}")
+#                elif key == 'image': # 发送图片
+#                    await matcher.send(MessageSegment.image(file=reply_content or ''))
+#                    logger.info(f"回复图片消息: {reply_content}")
 
-                elif key == 'file':  # 发送文件
-                    # await matcher.send(MessageSegment.file(file=reply_content or ''))
-                    try:
-                        await bot.call_api('upload_group_file', group_id=chat.chat_key.split('_')[1], file=reply_content, name=reply_content.split('/')[-1])    # type: ignore
-                    except Exception as e:
-                        logger.error(f"尝试上传文件失败: {e}")
-                    logger.info(f"回复文件消息: {reply_content}")
+#                elif key == 'file':  # 发送文件
+#                    # await matcher.send(MessageSegment.file(file=reply_content or ''))
+#                    try:
+#                        await bot.call_api('upload_group_file', group_id=chat.chat_key.split('_')[1], file=reply_content, name=reply_content.split('/')[-1])    # type: ignore
+#                    except Exception as e:
+#                        logger.error(f"尝试上传文件失败: {e}")
+#                    logger.info(f"回复文件消息: {reply_content}")
 
-                elif key == 'voice': # 发送语音
-                    logger.info(f"回复语音消息: {reply_content}")
-                    await matcher.send(Message(MessageSegment.record(file=reply_content, cache=False))) # type: ignore
+#                elif key == 'voice': # 发送语音
+#                    logger.info(f"回复语音消息: {reply_content}")
+#                    await matcher.send(Message(MessageSegment.record(file=reply_content, cache=False))) # type: ignore
 
                 elif key == 'code_block':  # 发送代码块
-                    await matcher.send(Message(reply_text))
+                    #await matcher.send(Message(reply_text))
+                    await output_message(reply_text)
 
                 elif key == 'memory':  # 记忆存储
                     logger.info(f"存储记忆: {reply_content}")
@@ -499,9 +573,11 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
                         chat.set_memory(memory.get('key', ''), memory.get('value', ''))
                         if config.DEBUG_LEVEL > 0:
                             if memory.get('key') and memory.get('value'):
-                                await matcher.send(f"[debug]: 记住了 {memory.get('key')} = {memory.get('value')}")
+                                #await matcher.send(f"[debug]: 记住了 {memory.get('key')} = {memory.get('value')}")
+                                await output_message(f"[debug]: 记住了 {memory.get('key')} = {memory.get('value')}")
                             elif memory.get('key') and memory.get('value') is None:
-                                await matcher.send(f"[debug]: 忘记了 {memory.get('key')}")
+                                #await matcher.send(f"[debug]: 忘记了 {memory.get('key')}")
+                                await output_message(f"[debug]: 忘记了 {memory.get('key')}")
 
                 elif key == 'notify':  # 通知消息
                     if isinstance(reply_content, dict):
@@ -531,22 +607,22 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
                     else:
                         logger.warning(f"更新对话预设: {chat.preset_key} 失败")
 
-                elif key == 'rcon':  # RCON指令
-                    try:
-                        with MCRcon(config.MC_RCON_HOST, config.MC_RCON_PASSWORD, int(config.MC_RCON_PORT), timeout=10) as mcr:
-                            resp = mcr.command(reply_content)
-                            resp = resp if resp else '无'
-                            loop_data['end_notify'] = {'sender': '[Minecraft Rcon]', 'msg': f"执行 \"{reply_content}\" | 结果: {resp}"}
-                            if config.DEBUG_LEVEL > 0:  logger.info(f"发送MC-RCON指令: {reply_content} | 响应: {resp}")
-                    except:
-                        logger.warning(f"发送MC-RCON指令: {reply_content} 失败")
+                #elif key == 'rcon':  # RCON指令
+                #    try:
+                #        with MCRcon(config.MC_RCON_HOST, config.MC_RCON_PASSWORD, int(config.MC_RCON_PORT), timeout=10) as mcr:
+                #            resp = mcr.command(reply_content)
+                #            resp = resp if resp else '无'
+                #            loop_data['end_notify'] = {'sender': '[Minecraft Rcon]', 'msg': f"执行 \"{reply_content}\" | 结果: {resp}"}
+                #            if config.DEBUG_LEVEL > 0:  logger.info(f"发送MC-RCON指令: {reply_content} | 响应: {resp}")
+                #    except:
+                #        logger.warning(f"发送MC-RCON指令: {reply_content} 失败")
 
                 res_times -= 1
                 if res_times < 1:  # 如果回复次数超过限制，则跳出循环
                     break
         else:
             logger.error(f'unknown reply type:{type(reply)}, content:{reply}')
-        await asyncio.sleep(1)  # 每条回复之间间隔1秒
+        await asyncio.sleep(random.uniform(0,2))  # 每条回复之间间隔1秒
 
     cost_token = tg.cal_token_count(str(prompt_template) + raw_res)  # 计算对话结果的 token 数量
 
@@ -577,7 +653,6 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
                 await asyncio.sleep(time_diff)
             if config.DEBUG_LEVEL > 0: logger.info("再次调用对话...")
             await do_msg_response(
-                matcher=matcher,
                 trigger_text=loop_data.get('notify', {}).get('msg', ''),
                 trigger_userid=trigger_userid,
                 sender_name=loop_data.get('notify', {}).get('sender', '[system]'),
@@ -585,12 +660,10 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
                 loop_times=loop_times + 1,
                 chat_type=chat_type,
                 is_tome=is_tome,
-                chat_key=chat_key,
-                bot=bot,
+                chat_key=chat_key
             )
         elif 'notify' in loop_data:   # 如果存在通知消息，将其作为触发消息再次调用对话
             await do_msg_response(
-                matcher=matcher,
                 trigger_text=loop_data.get('notify', {}).get('msg', ''),
                 trigger_userid=trigger_userid,
                 sender_name=loop_data.get('notify', {}).get('sender', '[system]'),
@@ -598,52 +671,81 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ma
                 loop_times=loop_times + 1,
                 chat_type=chat_type,
                 is_tome=is_tome,
-                chat_key=chat_key,
-                bot=bot,
+                chat_key=chat_key
             )
+        elif 'auto_gen' not in loop_data or loop_data.get('auto_gen', True):
+            await auto_gen(chat_key=chat_key, trigger_userid=trigger_userid, chat_type=chat_type, screenshot=loop_data.get('auto_gen_screenshot', False))
+        elif 'auto_gen' in loop_data:
+            logger.info(f"{chat_key}对话已结束，但未设置自动生成，跳过...")
 
+    return
+
+
+async def auto_gen(chat_key:str, trigger_userid:str, chat_type:str = 'private', screenshot:bool = False) -> bool:
+    """等待对话响应"""
+    global scheduled_sessions
     if chat_key not in scheduled_sessions:
         scheduled_sessions.append(chat_key)
-        day_min = 0
-        day_max = 4
-        sec_min = 21600
-        sec_max = 75600
-        next_sec = random_next_time(day_min, day_max, sec_min, sec_max)
-        logger.info(f"将于 {next_sec}秒 后尝试主动发起对话...")
-        await asyncio.sleep(next_sec)
-        while (time.time() - chat.last_msg_time) < 7200:
-            wait_sec = random.randint(7200, 14400)
-            realtime = wait_sec + today_sec()
-            if realtime <= sec_max and realtime >= sec_min:
-                logger.info(f"最近两个小时已有过对话，将再等待 {wait_sec}秒 后尝试发起对话...")
-                await asyncio.sleep(wait_sec)
-            else:
-                next_day_sec = random_next_time(1, 1, sec_min, sec_max)
-                logger.info(f"最近两个小时已有过对话，且今天已经没有时间了，将再等待 {next_day_sec}秒 后尝试发起对话...")
-                await asyncio.sleep(next_day_sec)
+        #day_min = 0
+        #day_max = 5
+        sec_min = 1800
+        sec_max = 3600
+        sleeptime = random.randint(sec_min, sec_max)
+        logger.info(f"将于 {sleeptime}s({time.strftime('%H:%M:%S', time.localtime(time.time() + sleeptime))}) 后尝试主动发起对话...")
+        await asyncio.sleep(sleeptime)
+        chat:Chat = ChatManager.instance.get_or_create_chat(chat_key=chat_key)
+        while (time.time() - chat.last_msg_time) < 600:
+            randomwait = random.randint(300, 600)
+            #realtime = randomwait + today_sec()
+            if True:#realtime <= sec_max and realtime >= sec_min:
+                logger.info(f"最近十分钟已有过对话，将再等待 {randomwait}s({time.strftime('%H:%M:%S', time.localtime(time.time() + randomwait))}) 后尝试发起对话...")
+                await asyncio.sleep(randomwait)
+            #else:
+            #    sleeptime2 = random_next_time(1, 1, sec_min, sec_max)
+            #    logger.info(f"最近一小时已有过对话，且今天已经没有时间了，将再等待 {sleeptime2}s 后尝试发起对话...")
+            #    await asyncio.sleep(sleeptime2)
+        last_msg = chat.chat_data.chat_history[-1]
+        last_timestr = last_msg.split(']')[0][1:]
+        last_time = time.strptime(last_timestr, '%Y-%m-%d %H:%M:%S %A')
+        last_timestamp = time.mktime(last_time)
+        past_time_min = math.ceil(time.time()-last_timestamp)/60
+        if screenshot:
+            image_path = await take_screenshot()
+            prompt = f'由于已经有一段时间没有过对话了(约{past_time_min}分钟)，现在你获得了一次观察用户电脑屏幕并主动发言的机会！这是你的一次主动对话，请根据用户电脑屏幕的信息进行交流。'
+        else:
+            prompt = f"由于已经有一段时间没有过对话了(约{past_time_min}分钟)，现在你获得了一次主动发言机会！这是你的一次主动对话，请尝试一些新话题，又或者是继续之前的话题。"
         scheduled_sessions.remove(chat_key)
         logger.info("现在主动发起对话...")
+        
         await do_msg_response(
-            matcher=matcher,
-            trigger_text=f"由于已经有一段时间没有过对话了（约{math.ceil((time.time()-chat.last_msg_time)/3600)}个小时），现在你获得了一次主动发言机会！这是你的一次主动对话，请尝试一些新话题，又或者是继续之前的话题。",
+            trigger_text=prompt,
             trigger_userid=trigger_userid,
             sender_name='[system]',
             wake_up=True,
+            loop_data={"auto_gen": False, "auto_gen_screenshot": screenshot},
             chat_type=chat_type,
             is_tome=False,
             chat_key=chat_key,
-            bot=bot,
+            trigger_image=image_path if screenshot else None,
+            trigger_image_prompt='这张屏幕截图上有些什么？' if screenshot else ''
         )
+        return True
+    logger.info(f"{chat_key}已经存在一个自动对话任务，将不发起新的自动对话任务")
+    return False
 
-def today_sec():
-    t = time.localtime()
-    sec = t.tm_hour * 3600 + t.tm_min * 60 + t.tm_sec
-    return sec
+#def today_sec():
+#    ima = time.localtime()
+#    sec = ima.tm_hour * 3600 + ima.tm_min * 60 + ima.tm_sec
+#    return sec
 
-def random_next_time(dmin, dmax, smin, smax):
-    r_sec = random.randint(dmin, dmax) * 86400
-    r_sec += random.randint(smin, smax)
-    r_sec -= today_sec()
-    if r_sec < 0:
-        r_sec += 86400
-    return r_sec
+#def random_next_time(smin, smax):
+    #t_sec = today_sec()
+    #randomseconds = 0
+    #randomseconds += random.randint(dmin, dmax) * 86400
+    #if randomseconds == 0 and smin < t_sec:
+    #    smin = t_sec
+    #randomseconds += random.randint(smin, smax)
+    #randomseconds -= t_sec
+    #if randomseconds < 7200:
+    #    randomseconds += 86400
+    #return randomseconds

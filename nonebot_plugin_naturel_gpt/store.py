@@ -2,7 +2,7 @@ from collections import deque
 import json
 from typing import Any, Dict, Union
 from typing_extensions import Self
-from .logger import logger
+from logger import logger
 
 
 class StoreSerializable:

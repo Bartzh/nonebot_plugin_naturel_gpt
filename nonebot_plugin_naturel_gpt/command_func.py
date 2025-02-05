@@ -4,14 +4,14 @@ from typing import Optional, Dict
 
 import requests
 
-from .chat import Chat
-from .chat_manager import ChatManager
-from .config import *
-from .Extension import global_extensions, load_extensions
-from .logger import logger
-from .persistent_data_manager import PersistentDataManager
+from chat import Chat
+from chat_manager import ChatManager
+from config import *
+from Extension import global_extensions, load_extensions
+from logger import logger
+from persistent_data_manager import PersistentDataManager
 
-from .preset_hub_funcs import upload_preset, get_preset, search_preset, delete_preset
+from preset_hub_funcs import upload_preset, get_preset, search_preset, delete_preset
 
 # 选项类型  bool只要有就是True，str则需要跟上参数值
 option_type = {
@@ -441,7 +441,8 @@ def _(option_dict, param_dict, chat:Chat, chat_presets_dict:dict):
 
 @cmd.register(route='rg/ext/reload', params=['ext_name'])
 def _(option_dict, param_dict, chat:Chat, chat_presets_dict:dict):
-    load_extensions(config.dict())
+    #load_extensions(config.dict())
+    load_extensions(config.model_dump())
     return {'msg': f"重载扩展成功!"}
 
 def find_ext(ext_name: str) -> Optional[ExtConfig]:

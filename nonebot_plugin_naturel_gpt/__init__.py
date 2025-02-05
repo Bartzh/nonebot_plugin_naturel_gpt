@@ -1,30 +1,37 @@
 from typing import Awaitable, Callable, Optional, Tuple
-from nonebot import get_driver
-from .logger import logger
-from nonebot.matcher import Matcher
-from nonebot.adapters import Bot, Event
+#from nonebot import get_driver
+from logger import logger
+#from nonebot.matcher import Matcher
+#from nonebot.adapters import Bot, Event
 
-from .config import *
-from .preset_hub_funcs import check_presethub_connection
-from . import utils
+from config import *
+#from .preset_hub_funcs import check_presethub_connection
+import utils
 
-global_config = get_driver().config
+#global_config = get_driver().config
 # logger.info(config) # 这里可以打印出配置文件的内容
 
-from .openai_func import TextGenerator
-from .Extension import load_extensions
-from .persistent_data_manager import PersistentDataManager
-from .chat_manager import ChatManager
-from . import matcher
-from . import matcher_MCRcon # noqa: F401
+from openai_func import TextGenerator
+from Extension import load_extensions
+from persistent_data_manager import PersistentDataManager
+from chat_manager import ChatManager
+from chat import Chat
+import matcher
+#import matcher_MCRcon # noqa: F401
+
+from fastapi import FastAPI, Request
+import uvicorn, json, datetime
+import asyncio
+
+from contextlib import asynccontextmanager
 
 
-def set_permission_check_func(callback:Callable[[Matcher, Event, Bot, str, str], Awaitable[Tuple[bool,Optional[str]]]]):
-    """设置Matcher的权限检查函数"""
-    matcher.permission_check_func = callback
-
+#def set_permission_check_func(callback:Callable[[Matcher, Event, Bot, str, str], Awaitable[Tuple[bool,Optional[str]]]]):
+#    """设置Matcher的权限检查函数"""
+#    matcher.permission_check_func = callback
+ 
 # 设置默认权限检查函数，有需求时可以覆盖
-set_permission_check_func(utils.default_permission_check_func)
+#set_permission_check_func(utils.default_permission_check_func)
 
 """ ======== 读取历史记忆数据 ======== """
 PersistentDataManager.instance.load_from_file()
@@ -56,10 +63,78 @@ base_url=config.OPENAI_BASE_URL if config.OPENAI_BASE_URL else '', # OpenAI API�
 
 """ ======== 加载扩展模块 ======== """
 # Extension 模块有作为 __main__ 执行的需求，此时无法加载 class Config, 因此需要传递字典
-load_extensions(config.dict())
+#load_extensions(config.dict())
+load_extensions(config.model_dump())
 
 """ ======== 预设中心连接检查 ======== """
-if check_presethub_connection():
+"""if check_presethub_connection():
     logger.info(f"已连接到预设中心: {config.PRESETHUB_BED_URL}")
 else:
     logger.warning("预设中心连接失败，请检查网络连接或预设中心地址是否正确")
+"""
+
+async def init_auto_gen():
+    #await utils.take_screenshot()
+    await matcher.auto_gen(chat_key='private_test1', trigger_userid='test1', chat_type='private', screenshot=True)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("API Starting up...")
+    asyncio.create_task(init_auto_gen())
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
+
+#@app.on_event("startup")
+#async def startup_event():
+#    asyncio.create_task(init_auto_gen())
+
+@app.post("/chat")
+async def chat(request: Request):
+    #json_post_raw = await request.json()
+    #json_post = json.dumps(json_post_raw)
+    #json_post_list = json.loads(json_post)
+    json_post_list = await request.json()
+    prompt = json_post_list.get('prompt')
+    image = json_post_list.get('image')
+    image_prompt = json_post_list.get('image_prompt')
+    await matcher.do_msg_response(
+        trigger_userid='test1',
+        trigger_text=prompt,
+        is_tome=True,
+        chat_type='private',
+        chat_key='private_test1',
+        sender_name='bart',
+        wake_up=True,
+        trigger_image=image if image else None,
+        trigger_image_prompt=image_prompt if image_prompt else ''
+    )
+    now = datetime.datetime.now()
+    time = now.strftime("%Y-%m-%d %H:%M:%S")
+    answer = {
+        "status": 200,
+        "time": time
+    }
+    return answer
+
+@app.post("/get/chat/history")
+async def get_chat_history(request: Request):
+    #json_post_raw = await request.json()
+    #json_post = json.dumps(json_post_raw)
+    #json_post_list = json.loads(json_post)
+    json_post_list = await request.json()
+    key = json_post_list.get('chat_key')
+    now = datetime.datetime.now()
+    time = now.strftime("%Y-%m-%d %H:%M:%S")
+    chat:Chat = ChatManager.instance.get_or_create_chat(chat_key=key)
+    history = chat.chat_data.chat_history
+    answer = {
+        "history": history,
+        "status": 200,
+        "time": time
+    }
+    return answer
+
+
+uvicorn.run(app, host='127.0.0.1', port=36262, workers=1)

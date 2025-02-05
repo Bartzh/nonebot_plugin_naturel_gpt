@@ -1,15 +1,17 @@
 ﻿import copy
 import time
+from datetime import datetime
 import random
 from typing import Dict, List, Optional, Tuple
-from .logger import logger
-from . import Extension
+from logger import logger
+import Extension
 
-from .text_func import compare_text
-from .config import *
-from .openai_func import TextGenerator
-from .persistent_data_manager import ImpressionData, ChatData, PresetData
-from .Extension import Extension, global_extensions
+from text_func import compare_text
+from config import *
+from openai_func import TextGenerator
+from persistent_data_manager import ImpressionData, ChatData, PresetData
+from Extension import Extension, global_extensions
+
 
 # 会话类
 class Chat:
@@ -40,7 +42,7 @@ class Chat:
     async def update_chat_history_row(self, sender:str, msg: str, require_summary:bool = False, record_time=False) -> None:
         """更新当前会话的全局对话历史行"""
         tg = TextGenerator.instance
-        messageunit = tg.generate_msg_template(sender=sender, msg=msg, time_str=f"[{time.strftime('%H:%M:%S %p', time.localtime())}] ")
+        messageunit = tg.generate_msg_template(sender=sender, msg=msg, time_str=f"[{time.strftime('%Y-%m-%d %H:%M:%S %A')}] ")
         self._chat_data.chat_history.append(messageunit)
         if config.DEBUG_LEVEL > 0: logger.info(f"[会话: {self.chat_key}]添加对话历史行: {messageunit}  |  当前对话历史行数: {len(self._chat_data.chat_history)}")
         if record_time:
@@ -75,7 +77,7 @@ class Chat:
         else:
             impression_data = self.chat_preset.chat_impressions[userid]
         tg = TextGenerator.instance
-        messageunit = tg.generate_msg_template(sender=sender, msg=msg)
+        messageunit = tg.generate_msg_template(sender=sender, msg=msg, time_str=f"[{time.strftime('%Y-%m-%d %H:%M:%S %A')}] ")
         impression_data.chat_history.append(messageunit)
         if config.DEBUG_LEVEL > 0: logger.info(f"添加对话历史行: {messageunit}  |  当前对话历史行数: {len(impression_data.chat_history)}")
         # 保证对话历史不超过最大长度
@@ -289,18 +291,20 @@ class Chat:
                 # "[memory (max length: 16 - Delete the unimportant memory in time before exceed it)]"
                 # f"[history memory (max length: {config.MEMORY_MAX_LENGTH} - Please delete the unimportant memory in time before exceed it)]\n"
                 "\n1. Developer's email: developer@mail.com\n"
-                "\n[Chat History (current time: 2023-03-05 16:29:45)]\n"
-                "\n\n[16:29:42 PM] Developer: Send an email to test@mail.com for testing\n"
-                "\n\n[16:29:45 PM] Alice:(Generate the response content of Alice, excluding 'Alice:')"
+                "\n[Chat History (current time: 2023-03-05 16:29:49 Sunday)]\n"
+                #"\n\n[16:29:42 PM] Developer: Send an email to test@mail.com for testing\n"
+                "\n\n[2023-03-05 16:29:42 Sunday] Developer: Send an email to the email address in the image for testing\n"
+                "\n\n[2023-03-05 16:29:47 Sunday] [image_analyzer]: [Here is an image and below is the image description]\nThis is the image of email address, it says 'test@mail.com'.\n"
+                "\n\n[2023-03-05 16:29:49 Sunday] Alice:(Generate the response content of Alice, excluding 'Alice:')"
             )},
             {'role': 'assistant', 'content': (  # 助手消息(演示输出)
-                "ok, I will send an email, please wait a moment /#email&example@mail.com&test title&hello this is a test#/ *; I have sent an e-mail. Did you get it?"
+                "ok, I will send an email, please wait a moment /#email&test@mail.com&test title&hello this is a test#/ *; I have sent an e-mail. Did you get it?"
             )},
             {'role': 'user', 'content': (   # 用户消息(实际场景)
                 f"[Character setting]\n{self.chat_preset.bot_self_introl}\n\n"
                 f"{memory}{impression_text}{summary}"
                 f"\n[{chat_history_title} (current time: {time.strftime('%Y-%m-%d %H:%M:%S %A')})]\n"
-                f"\n{chat_history}\n\n\n[{time.strftime('%H:%M:%S %p', time.localtime())}] {self.chat_preset.preset_key}:(Generate the response content of {self.chat_preset.preset_key}, excluding '{self.chat_preset.preset_key}:', Do not generate any reply from anyone else.)"
+                f"\n{chat_history}\n\n\n[{time.strftime('%Y-%m-%d %H:%M:%S %A')}] {self.chat_preset.preset_key}:(Generate the response content of {self.chat_preset.preset_key}, excluding '{self.chat_preset.preset_key}:', Do not generate any reply from anyone else.)"
             )},
         ]
     
@@ -310,6 +314,7 @@ class Chat:
             return f"[{'启用' if self.is_enable else '禁用'}] 会话: {self.chat_key[:-6]+('*'*6)} 预设: {self.preset_key}\n"
         else:
             return f"[{'启用' if self.is_enable else '禁用'}] 会话: {self.chat_key} 预设: {self.preset_key}\n"
+
 
     # region --------------------以下为只读属性定义--------------------
 

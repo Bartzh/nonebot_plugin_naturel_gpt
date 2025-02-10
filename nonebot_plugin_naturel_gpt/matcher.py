@@ -428,7 +428,7 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
             if config.DEBUG_LEVEL > 0: logger.warning(f'等待OpenAI请求返回的过程中人格预设由[{current_preset_key}]切换为[{chat.preset_key}],当前消息不再继续响应.1')
             return
 
-        await chat.update_chat_history_row_for_user(sender='image_analyzer', msg=image_res, userid=trigger_userid, username=sender_name, require_summary=False)
+        await chat.update_chat_history_row_for_user(sender='[image_analyzer]', msg=image_res, userid=trigger_userid, username=sender_name, require_summary=False)
 
         if chat.preset_key != current_preset_key:
             if config.DEBUG_LEVEL > 0: logger.warning(f'等待OpenAI请求返回的过程中人格预设由[{current_preset_key}]切换为[{chat.preset_key}],当前消息不再继续响应.1')
@@ -747,7 +747,7 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
 
 
 async def auto_gen(chat_key:str, trigger_userid:str, chat_type:str = 'private', screenshot:bool = False) -> bool:
-    """等待对话响应"""
+    """主动发起下次对话"""
     global scheduled_sessions
     if chat_key not in scheduled_sessions:
         scheduled_sessions.append(chat_key)
@@ -773,7 +773,7 @@ async def auto_gen(chat_key:str, trigger_userid:str, chat_type:str = 'private', 
         last_timestr = last_msg.split(']')[0][1:]
         last_time = time.strptime(last_timestr, '%Y-%m-%d %H:%M:%S %A')
         last_timestamp = time.mktime(last_time)
-        past_time_min = math.ceil(time.time()-last_timestamp)/60
+        past_time_min = math.ceil((time.time()-last_timestamp)/60)
         if screenshot:
             image_path = await take_screenshot()
             prompt = f'由于已经有一段时间没有过对话了(约{past_time_min}分钟)，现在你获得了一次观察用户电脑屏幕并主动发言的机会！这是你的一次主动对话，请根据用户电脑屏幕的信息进行交流。'

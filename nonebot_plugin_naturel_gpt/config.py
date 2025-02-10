@@ -30,12 +30,16 @@ class Config(BaseModel, extra=Extra.ignore):
     """ng 配置数据，默认保存为 naturel_gpt_config.yml"""
     OPENAI_API_KEYS: List[str]
     """OpenAI API Key 列表"""
+    OPENAI_API_KEYS_IMAGE: List[str]
+    """OpenAI API Key Image 列表"""
     OPENAI_TIMEOUT: int
     """OpenAI 请求超时时间"""
     OPENAI_PROXY_SERVER: str
     """请求OpenAI的代理服务器"""
     OPENAI_BASE_URL: str
     """请求OpenAI的基础URL"""
+    OPENAI_BASE_URL_IMAGE: str
+    """请求OpenAI多模态的基础URL"""
     REPLY_THROTTLE_TIME: int
     """回复间隔节流时间"""
     PRESETS: Dict[str, PresetConfig]
@@ -44,6 +48,8 @@ class Config(BaseModel, extra=Extra.ignore):
     """忽略前缀 以该前缀开头的消息将不会被处理"""
     CHAT_MODEL: str
     """OpenAI 模型"""
+    CHAT_MODEL_IMAGE: str
+    """OpenAI 多模态模型"""
     CHAT_TOP_P: int
     CHAT_TEMPERATURE: float
     """温度越高越随机"""
@@ -181,9 +187,14 @@ CONFIG_TEMPLATE = {
         'sk-xxxxxxxxxxxxx',
         'sk-xxxxxxxxxxxxx',
     ],
+    "OPENAI_API_KEYS_IMAGE": [    # OpenAI API Key Image 列表
+        'sk-xxxxxxxxxxxxx',
+        'sk-xxxxxxxxxxxxx',
+    ],
     "OPENAI_TIMEOUT": 60,   # OpenAI 请求超时时间
     'OPENAI_PROXY_SERVER': '',  # 请求OpenAI的代理服务器
     'OPENAI_BASE_URL': 'https://api.openai.com/v1',      # 请求OpenAI的基础URL
+    'OPENAI_BASE_URL_IMAGE': 'https://api.openai.com/v1',      # 请求OpenAI多模态的基础URL
     "REPLY_THROTTLE_TIME": 3,   # 回复间隔节流时间
     "PRESETS": {
         "白羽": {
@@ -217,6 +228,7 @@ CONFIG_TEMPLATE = {
     },
     'IGNORE_PREFIX': '#',   # 忽略前缀 以该前缀开头的消息将不会被处理
     'CHAT_MODEL': "gpt-3.5-turbo",
+    'CHAT_MODEL_IMAGE': 'gpt-4o',
     'CHAT_TOP_P': 1,
     'CHAT_TEMPERATURE': 0.4,    # 温度越高越随机
     'CHAT_PRESENCE_PENALTY': 0.4,   # 主题重复惩罚

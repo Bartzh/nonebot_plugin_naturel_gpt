@@ -40,6 +40,8 @@ ChatManager.instance.create_all_chat_object() # 启动时创建所有的已有Ch
 # 读取ApiKeys
 api_keys = config.OPENAI_API_KEYS
 logger.info(f"共读取到 {len(api_keys)} 个API Key")
+api_keys_image = config.OPENAI_API_KEYS_IMAGE
+logger.info(f"共读取到 {len(api_keys_image)} 个多模态API Key")
 
 # 检查聊天摘要功能是否开启 未开启则清空所有聊天摘要
 if not config.CHAT_ENABLE_SUMMARY_CHAT:
@@ -47,8 +49,9 @@ if not config.CHAT_ENABLE_SUMMARY_CHAT:
     ChatManager.instance.clear_all_chat_summary()
 
 """ ======== 初始化对话文本生成器 ======== """
-TextGenerator.instance.init(api_keys=api_keys, config={
+TextGenerator.instance.init(api_keys=api_keys, api_keys_image=api_keys_image, config={
         'model': config.CHAT_MODEL,
+        'model_image': config.CHAT_MODEL_IMAGE,
         'max_tokens': config.REPLY_MAX_TOKENS,
         'temperature': config.CHAT_TEMPERATURE,
         'top_p': config.CHAT_TOP_P,
@@ -73,14 +76,15 @@ else:
     logger.warning("预设中心连接失败，请检查网络连接或预设中心地址是否正确")
 """
 
-async def init_auto_gen():
+async def start_auto_gen(user:str):
     #await utils.take_screenshot()
-    await matcher.auto_gen(chat_key='private_test1', trigger_userid='test1', chat_type='private', screenshot=True)
+    await matcher.auto_gen(chat_key='private_'+user, trigger_userid=user, chat_type='private', screenshot=True)
+    pass
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("API Starting up...")
-    asyncio.create_task(init_auto_gen())
+    #asyncio.create_task(start_auto_gen())
     yield
 
 
@@ -96,13 +100,14 @@ async def chat(request: Request):
     prompt = json_post_list.get('prompt')
     image = json_post_list.get('image')
     image_prompt = json_post_list.get('image_prompt')
+    user = json_post_list.get('user')
     await matcher.do_msg_response(
-        trigger_userid='test1',
+        trigger_userid=user if user else '用户',
         trigger_text=prompt,
         is_tome=True,
         chat_type='private',
-        chat_key='private_test1',
-        sender_name='bart',
+        chat_key='private_' + user if user else 'private_用户',
+        sender_name=user if user else '用户',
         wake_up=True,
         trigger_image=image if image else None,
         trigger_image_prompt=image_prompt if image_prompt else ''
@@ -118,11 +123,11 @@ async def chat(request: Request):
 @app.post("/get/chat/history")
 async def get_chat_history(request: Request):
     json_post_list = await request.json()
-    key = json_post_list.get('chat_key')
-    now = datetime.datetime.now()
-    time = now.strftime("%Y-%m-%d %H:%M:%S")
+    key = 'private_' + str(json_post_list.get('user'))
     chat:Chat = ChatManager.instance.get_or_create_chat(chat_key=key)
     history = chat.chat_data.chat_history
+    now = datetime.datetime.now()
+    time = now.strftime("%Y-%m-%d %H:%M:%S")
     answer = {
         "history": history,
         "status": 200,
@@ -130,5 +135,19 @@ async def get_chat_history(request: Request):
     }
     return answer
 
+@app.post("/chat/auto_gen")
+async def chat_auto_gen(request: Request):
+    json_post_list = await request.json()
+    user = json_post_list.get('user')
+    #success = await start_auto_gen(user)
+    asyncio.create_task(start_auto_gen(user))
+    now = datetime.datetime.now()
+    time = now.strftime("%Y-%m-%d %H:%M:%S")
+    answer = {
+        #'success': success,
+        "status": 200,
+        "time": time
+    }
+    return answer
 
 uvicorn.run(app, host='127.0.0.1', port=36262, workers=1)

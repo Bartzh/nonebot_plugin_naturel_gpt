@@ -26,33 +26,41 @@ except:
     logger.warning("无法获取 openai 库版本，请更新至 0.27.0 版本以上，否则 gpt-3.5-turbo 模型将无法使用")
 
 class TextGenerator(Singleton["TextGenerator"]):
-    def init(self, api_keys: list, config: dict, proxy = None, base_url = ''):
+    def init(self, api_keys: list, api_keys_image: list, config: dict, proxy = None, base_url = '', base_url_image = ''):
         self.api_keys = api_keys
         self.key_index = 0
+        self.api_keys_image = api_keys_image
+        self.key_index_image = 0
         self.config = config
         if proxy:
             if not proxy.startswith('http'):
                 proxy = 'http://' + proxy
         openai.proxy = proxy
         if base_url:
-            openai.api_base = base_url
+            self.base_url = base_url
+            #openai.api_base = base_url
+        if base_url_image == '':
+            self.base_url_image = base_url
+        else:
+            self.base_url_image = base_url_image
     
 #    @run_sync
     async def get_response(self, prompt, type: str = 'chat', custom: dict = {}) -> Tuple[str, bool]:
         """获取文本生成"""
-        res, success = ('', False)
-        for _ in range(len(self.api_keys)):
+        res, success, success_image = ('', False, None)
+        api_keys_len = len(self.api_keys) if type != 'image' else len(self.api_keys_image)
+        for _ in range(api_keys_len):
             if type == 'chat':
                 res, success = self.get_chat_response(self.api_keys[self.key_index], prompt, custom)
             elif type == 'image':
-                res, success = self.get_image_response(self.api_keys[self.key_index], prompt, custom)
+                res, success_image = self.get_image_response(self.api_keys_image[self.key_index_image], prompt, custom)
             elif type == 'summarize':
                 res, success = self.get_summarize_response(self.api_keys[self.key_index], prompt, custom)
             elif type == 'impression':
                 res, success = self.get_impression_response(self.api_keys[self.key_index], prompt, custom)
             else:
                 res, success = (f'未知类型:{type}', False)
-            if success:
+            if success or success_image:
                 return res, True
 
             # 请求错误处理
@@ -70,8 +78,12 @@ class TextGenerator(Singleton["TextGenerator"]):
             else:
                 reason = res
                 res = '哎呀，发生了未知错误 (´；ω；`)'
-            self.key_index = (self.key_index + 1) % len(self.api_keys)
-            logger.warning(f"当前 Api Key({self.key_index}): [{self.api_keys[self.key_index][:4]}...{self.api_keys[self.key_index][-4:]}] 请求错误，尝试使用下一个...")
+            if success_image is not None:
+                self.key_index_image = (self.key_index_image + 1) % len(self.api_keys_image)
+                logger.warning(f"当前 Api Key Image({self.key_index_image}): [{self.api_keys_image[self.key_index_image][:4]}...{self.api_keys_image[self.key_index_image][-4:]}] 请求错误，尝试使用下一个...")
+            else:
+                self.key_index = (self.key_index + 1) % len(self.api_keys)
+                logger.warning(f"当前 Api Key({self.key_index}): [{self.api_keys[self.key_index][:4]}...{self.api_keys[self.key_index][-4:]}] 请求错误，尝试使用下一个...")
             logger.error(f"错误原因: {res} => {reason}")
         logger.error("请求 OpenAi 发生错误，请检查 Api Key 是否正确或者查看控制台相关日志")
         return res, False
@@ -79,6 +91,7 @@ class TextGenerator(Singleton["TextGenerator"]):
     def get_chat_response(self, key:str, prompt, custom:dict = {})->Tuple[str, bool]:
         """对话文本生成"""
         openai.api_key = key
+        openai.api_base = self.base_url
         try:
             #if self.config['model'].startswith('gpt-3.5-turbo') or self.config['model'].startswith('gpt-4'):
             if True:
@@ -134,6 +147,7 @@ class TextGenerator(Singleton["TextGenerator"]):
     def get_summarize_response(self, key:str, prompt:str, custom:dict = {})->Tuple[str, bool]:
         """总结文本生成"""
         openai.api_key = key
+        openai.api_base = self.base_url
         try:
             response = openai.ChatCompletion.create(
                 model=self.config['model'],
@@ -175,6 +189,7 @@ class TextGenerator(Singleton["TextGenerator"]):
     def get_impression_response(self, key:str, prompt:str, custom:dict = {})->Tuple[str, bool]:
         """印象文本生成"""
         openai.api_key = key
+        openai.api_base = self.base_url
         try:
             response = openai.ChatCompletion.create(
                 model=self.config['model'],
@@ -216,6 +231,7 @@ class TextGenerator(Singleton["TextGenerator"]):
     def get_image_response(self, key:str, prompt:str = '', custom:dict = {})->Tuple[str, bool]:
         """图像描述生成"""
         openai.api_key = key
+        openai.api_base = self.base_url_image
         try:
             #if self.config['model'].startswith('gpt-3.5-turbo') or self.config['model'].startswith('gpt-4'):
             image_url = custom.get('image_url', '')
@@ -247,7 +263,7 @@ class TextGenerator(Singleton["TextGenerator"]):
             if prompt == '':
                 prompt = '这张图里有些什么？'
             response = openai.ChatCompletion.create(
-                model='qwen-vl-max-latest',#self.config['model'],
+                model=self.config['model_image'],
                 messages=[
                     {
                     "role": "user",
@@ -266,7 +282,7 @@ class TextGenerator(Singleton["TextGenerator"]):
                     }
                 ],
                 temperature=0.6,
-                max_tokens=self.config['max_tokens'],
+                max_tokens=self.config.get('max_summary_tokens', 512),
                 top_p=1,
                 #frequency_penalty=self.config['frequency_penalty'],
                 presence_penalty=0.2,

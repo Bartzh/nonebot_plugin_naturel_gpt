@@ -56,7 +56,7 @@ async def default_permission_check_func(user_id:str, chat_type:str, cmd:Optional
     if(len(cmd_list) == 0): # rg
         return (True, None)
 
-    is_super_user = user_id in config.ADMIN_USERID# or await (SUPERUSER)(bot, event)
+    is_super_user = True#user_id in config.ADMIN_USERID# or await (SUPERUSER)(bot, event)
     is_admin = is_super_user or chat_type == 'private'# or await (GROUP_ADMIN | GROUP_OWNER)(bot, event) # 超级管理员，私聊，群主，群管理，均视为admin
 
     common_cmd = ['', '查询', 'query', '设定', 'set', '更新', 'update', 'edit', '添加', 'new', '开启', 'on', '关闭', 'off', '重置', 'reset']
@@ -199,7 +199,7 @@ def md5(s):
     m.update(s.encode("utf-8"))
     return m.hexdigest()
 
-async def output_message(content, sender:str = 'system'):
+async def output_message(content, sender:str = 'system') -> bool:
     """输出消息的统一方式"""
     if type(content) == str:
         #logger.info(content)
@@ -218,7 +218,7 @@ async def output_message(content, sender:str = 'system'):
             )
             return True
         except Exception as e:
-            logger.error(f"输出消息失败: {e}")
+            logger.warning(f"输出消息失败: {e}")
             return False
     return False
 

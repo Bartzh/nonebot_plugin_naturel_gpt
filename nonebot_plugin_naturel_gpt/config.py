@@ -28,6 +28,8 @@ class ExtConfig(BaseModel, extra=Extra.ignore):
 
 class Config(BaseModel, extra=Extra.ignore):
     """ng 配置数据，默认保存为 naturel_gpt_config.yml"""
+    FRONTEND_URL: str
+    """前端地址"""
     OPENAI_API_KEYS: List[str]
     """OpenAI API Key 列表"""
     OPENAI_API_KEYS_IMAGE: List[str]
@@ -73,6 +75,17 @@ class Config(BaseModel, extra=Extra.ignore):
     """是否在被at时回复"""
     REPLY_ON_WELCOME: bool
     """是否在新成员加入时回复"""
+
+    AUTO_GEN: bool
+    """是否启用自动生成功能"""
+    AUTO_GEN_SEC_MIN: int
+    """自动生成最小间隔时间"""
+    AUTO_GEN_SEC_MAX: int
+    """自动生成最大间隔时间"""
+    AUTO_GEN_SEC_INTERVAL: int
+    """自动生成常规对话间隔时间"""
+    AUTO_GEN_SCREENSHOT: bool
+    """是否启用屏幕截图功能"""
 
     USER_MEMORY_SUMMARY_THRESHOLD: int
     """用户记忆阈值"""
@@ -183,6 +196,7 @@ class Config(BaseModel, extra=Extra.ignore):
 
 # 配置文件模板(把全部默认值写到Config定义里比较乱，因此保留此默认值对象,作为真实的默认值)
 CONFIG_TEMPLATE = {
+    "FRONTEND_URL": "http://127.0.0.1:36264",
     "OPENAI_API_KEYS": [    # OpenAI API Key 列表
         'sk-xxxxxxxxxxxxx',
         'sk-xxxxxxxxxxxxx',
@@ -230,24 +244,30 @@ CONFIG_TEMPLATE = {
     'CHAT_MODEL': "gpt-3.5-turbo",
     'CHAT_MODEL_IMAGE': 'gpt-4o',
     'CHAT_TOP_P': 1,
-    'CHAT_TEMPERATURE': 0.4,    # 温度越高越随机
+    'CHAT_TEMPERATURE': 0.6,    # 温度越高越随机
     'CHAT_PRESENCE_PENALTY': 0.4,   # 主题重复惩罚
     'CHAT_FREQUENCY_PENALTY': 0.4,  # 复读惩罚
 
-    'CHAT_HISTORY_MAX_TOKENS': 2048,    # 上下文聊天记录最大token数
-    'CHAT_MAX_SUMMARY_TOKENS': 512,   # 单次总结最大token数
+    'CHAT_HISTORY_MAX_TOKENS': 3072,    # 上下文聊天记录最大token数
+    'CHAT_MAX_SUMMARY_TOKENS': 1024,   # 单次总结最大token数
     'REPLY_MAX_TOKENS': 1024,   # 单次回复最大token数
-    'REQ_MAX_TOKENS': 3072,  # 单次请求最大token数
+    'REQ_MAX_TOKENS': 4096,  # 单次请求最大token数
 
     'REPLY_ON_NAME_MENTION': True,  # 是否在被提及时回复
     'REPLY_ON_AT': True,            # 是否在被at时回复
     'REPLY_ON_WELCOME': True,       # 是否在新成员加入时回复
 
+    'AUTO_GEN': True,
+    'AUTO_GEN_SEC_MIN': 600,
+    'AUTO_GEN_SEC_MAX': 3600,
+    'AUTO_GEN_SEC_INTERVAL': 600,
+    'AUTO_GEN_SCREENSHOT': False,  # 是否自动截图并发送
+
     'USER_MEMORY_SUMMARY_THRESHOLD': 12,  # 用户记忆阈值
 
     'CHAT_ENABLE_RECORD_ORTHER': True,  # 是否记录其他人的对话
     'CHAT_ENABLE_SUMMARY_CHAT': False,   # 是否启用总结对话
-    'CHAT_MEMORY_SHORT_LENGTH': 8,  # 短期对话记忆长度
+    'CHAT_MEMORY_SHORT_LENGTH': 12,  # 短期对话记忆长度
     'CHAT_MEMORY_MAX_LENGTH': 16,   # 长期对话记忆长度
     'CHAT_SUMMARY_INTERVAL': 10,  # 长期对话记忆间隔
 
@@ -267,13 +287,13 @@ CONFIG_TEMPLATE = {
 
     'NG_MSG_PRIORITY': 99,       # 消息响应优先级
     'NG_BLOCK_OTHERS': False,    # 是否阻止其他插件响应
-    'NG_ENABLE_EXT': True,      # 是否启用扩展
+    'NG_ENABLE_EXT': False,      # 是否启用扩展
     'NG_TO_ME':False,           # 响应命令是否需要@bot
-    'ENABLE_COMMAND_TO_IMG': True,    #是否将rg相关指令转换为图片
+    'ENABLE_COMMAND_TO_IMG': False,    #是否将rg相关指令转换为图片
     'ENABLE_MSG_TO_IMG': False,     #是否将机器人的回复转换成图片
     'IMG_MAX_WIDTH': 800,
 
-    'MEMORY_ACTIVE': True,  # 是否启用记忆功能
+    'MEMORY_ACTIVE': False,  # 是否启用记忆功能
     'MEMORY_MAX_LENGTH': 16,  # 记忆最大条数
     'MEMORY_ENHANCE_THRESHOLD': 0.6,  # 记忆强化阈值
 

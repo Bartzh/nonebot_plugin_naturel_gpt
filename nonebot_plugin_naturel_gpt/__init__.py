@@ -78,7 +78,7 @@ else:
 
 async def start_auto_gen(user:str):
     #await utils.take_screenshot()
-    await matcher.auto_gen(chat_key='private_'+user, trigger_userid=user, chat_type='private', screenshot=True)
+    await matcher.auto_gen(chat_key='private_'+user, trigger_userid=user, chat_type='private', screenshot=config.AUTO_GEN_SCREENSHOT)
     pass
 
 @asynccontextmanager

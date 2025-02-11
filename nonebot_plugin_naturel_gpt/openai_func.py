@@ -107,6 +107,7 @@ class TextGenerator(Singleton["TextGenerator"]):
                     #frequency_penalty=self.config['frequency_penalty'],
                     presence_penalty=self.config['presence_penalty'],
                     #timeout=self.config.get('timeout', 30),
+                    #extra_body={"enable_search": True} if self.config['model'].startswith('qwen') else {},
                     stop=[f"\n{custom.get('bot_name', 'AI')}:", f"\n{custom.get('sender_name', 'Human')}:"]
                 )
                 res:str = ''

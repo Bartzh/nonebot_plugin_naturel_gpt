@@ -233,6 +233,7 @@ class Chat:
                 if config.ENABLE_MSG_TO_IMG
                 else "If the response contains code blocks, use the markdown format below\n```python\nprint('hi')\n```"
             ),
+            "Otherwise, do not use markdown syntax in your response.",
             "The response content should be diverse, do not repeat the content that has already been replied.",
             "Your answer should strictly follow the information in context and not make up or assume something that doesn't exist unless the user asks you to.",
             (

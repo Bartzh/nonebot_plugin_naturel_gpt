@@ -1,7 +1,8 @@
 import time
 
 from httpx import AsyncClient
-from nonebot import logger
+#from nonebot import logger
+from logger import logger
 
 from .Extension import Extension
 
@@ -33,7 +34,8 @@ class CustomExtension(Extension):
     async def call(self, arg_dict: dict, _: dict) -> dict:
         custom_config: dict = self.get_custom_config()
         proxy = custom_config.get("proxy", None)
-        max_results = custom_config.get("max_results", 3)
+        #max_results = custom_config.get("max_results", 3)
+        max_results = max(1, min(custom_config.get("max_results", 3), 10))
         apiKey = custom_config.get("apiKey", None)
         cxKey = custom_config.get("cxKey", None)
 
@@ -60,18 +62,18 @@ class CustomExtension(Extension):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36 Edg/110.0.1587.63"
         }
 
-        url = "https://www.googleapis.com/customsearch/v1"
+        url = "https://customsearch.googleapis.com/customsearch/v1"
         try:
-            async with AsyncClient(proxies=proxy) as cli:
+            async with AsyncClient(proxy=proxy) as cli:
                 response = (
                     await cli.get(
-                        url,
+                        url=url,
                         headers=headers,
-                        params={"key": apiKey, "cx": cxKey, "q": keyword},
+                        params={"key": apiKey, "cx": cxKey, "q": keyword, "num": max_results, "hl": "zh-CN", "gl": "cn"},
                     )
                 ).json()
-        except:
-            logger.exception("搜索失败")
+        except Exception as e:
+            logger.error('搜索失败：' + str(e))
             return {
                 "text": "[Google] 搜索失败",
                 "image": None,
@@ -96,7 +98,7 @@ class CustomExtension(Extension):
         self._last_keyword = keyword
         self._last_call_time = time.time()
         return {
-            "text": f"[Google] 搜索: {keyword} [完成]",
+            #"text": f"[Google] 搜索: {keyword} [完成]",
             "notify": {
                 "sender": "[Google]",
                 "msg": f"[Search results for {keyword} (The following information will not be sent directly to chat. Please summarize the search results as desired in your reply)]\n{text}",

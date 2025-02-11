@@ -199,22 +199,23 @@ def md5(s):
     m.update(s.encode("utf-8"))
     return m.hexdigest()
 
-async def output_message(content, sender:str = 'system') -> bool:
+async def output_message(content, sender:str = '[system]') -> bool:
     """输出消息的统一方式"""
     if type(content) == str:
         #logger.info(content)
         try:
-            notification.notify(
-                title=sender,
-                message=content[0:23]+'...',
-                #timeout = 5,
-                app_name='Naturel GPT'
-            )
+            if not (sender.startswith('[') and sender.endswith(']')):
+                notification.notify(
+                    title=sender,
+                    message=content[0:23]+'...',
+                    #timeout = 5,
+                    app_name='Naturel GPT'
+                )
             await async_fetch(
-                url='http://127.0.0.1:36264/input',
+                url=config.FRONTEND_URL.rstrip('/') + "/notify",
                 method="post",
                 headers={"Content-Type": "application/json"},
-                data={"message": content}
+                data={"message": content, "sender": sender}
             )
             return True
         except Exception as e:

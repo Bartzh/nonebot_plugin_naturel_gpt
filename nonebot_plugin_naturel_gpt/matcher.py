@@ -423,12 +423,8 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
         image_res = f'[Here is an image and below is the image description]\n{image_res}'
 
         await chat.update_chat_history_row(sender='[image_analyzer]', msg=image_res, require_summary=False, record_time=False)
-
-        if chat.preset_key != current_preset_key:
-            if config.DEBUG_LEVEL > 0: logger.warning(f'等待OpenAI请求返回的过程中人格预设由[{current_preset_key}]切换为[{chat.preset_key}],当前消息不再继续响应.1')
-            return
-
         await chat.update_chat_history_row_for_user(sender='[image_analyzer]', msg=image_res, userid=trigger_userid, username=sender_name, require_summary=False)
+        await output_message(image_res, sender='[image_analyzer]')
 
         if chat.preset_key != current_preset_key:
             if config.DEBUG_LEVEL > 0: logger.warning(f'等待OpenAI请求返回的过程中人格预设由[{current_preset_key}]切换为[{chat.preset_key}],当前消息不再继续响应.1')
@@ -560,7 +556,7 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
                     reply_list.append(ext_res)
             except Exception as e:
                 logger.error(f"调用扩展 {ext_name} 时发生错误: {e!r}")
-                if config.DEBUG_LEVEL > 0: logger.opt(exception=e).exception(f"[扩展 {ext_name}] 错误详情:")
+                #if config.DEBUG_LEVEL > 0: logger.opt(exception=e).exception(f"[扩展 {ext_name}] 错误详情:")
                 ext_res = {}
                 # 将错误的调用指令从原始回复中去除，避免bot从上下文中学习到错误的指令用法
                 raw_res = re.sub(r"/.?#(.+?)#.?/", '', raw_res)
@@ -739,7 +735,7 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
                 chat_key=chat_key
             )
     if 'auto_gen' not in loop_data or loop_data.get('auto_gen', True):
-        await auto_gen(chat_key=chat_key, trigger_userid=trigger_userid, chat_type=chat_type, screenshot=loop_data.get('auto_gen_screenshot', False))
+        asyncio.create_task(auto_gen(chat_key=chat_key, trigger_userid=trigger_userid, chat_type=chat_type, screenshot=loop_data.get('auto_gen_screenshot', config.AUTO_GEN_SCREENSHOT)))
     else:
         logger.info(f"{chat_key}对话已结束，但设置了不自动生成，跳过...")
 
@@ -749,18 +745,21 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
 async def auto_gen(chat_key:str, trigger_userid:str, chat_type:str = 'private', screenshot:bool = False) -> bool:
     """主动发起下次对话"""
     global scheduled_sessions
+    if config.AUTO_GEN == False:  # 如果自动生成对话功能未启用，则跳过
+        return False
     if chat_key not in scheduled_sessions:
         scheduled_sessions.append(chat_key)
         #day_min = 0
         #day_max = 5
-        sec_min = 1200
-        sec_max = 3600
+        sec_min = config.AUTO_GEN_SEC_MIN
+        sec_max = config.AUTO_GEN_SEC_MAX
         sleeptime = random.randint(sec_min, sec_max)
         logger.info(f"将于 {sleeptime}s 后({time.strftime('%H:%M:%S', time.localtime(time.time() + sleeptime))})尝试主动发起对话...")
         await asyncio.sleep(sleeptime)
         chat:Chat = ChatManager.instance.get_or_create_chat(chat_key=chat_key)
-        while (time.time() - chat.last_msg_time) < 600:
-            randomwait = random.randint(300, 600)
+        sec_interval = config.AUTO_GEN_SEC_INTERVAL
+        while (time.time() - chat.last_msg_time) < sec_interval:
+            randomwait = random.randint(sec_interval/2, sec_interval)
             #realtime = randomwait + today_sec()
             if True:#realtime <= sec_max and realtime >= sec_min:
                 logger.info(f"最近十分钟已有过对话，将再等待 {randomwait}s 后({time.strftime('%H:%M:%S', time.localtime(time.time() + randomwait))})尝试发起对话...")
@@ -795,8 +794,9 @@ async def auto_gen(chat_key:str, trigger_userid:str, chat_type:str = 'private', 
             trigger_image_prompt='这张屏幕截图上有些什么？' if screenshot else ''
         )
         return True
-    logger.info(f"{chat_key}已经存在一个自动对话任务，将不发起新的自动对话任务")
-    return False
+    else:
+        logger.info(f"{chat_key}已经存在一个自动对话任务，将不发起新的自动对话任务")
+        return False
 
 #def today_sec():
 #    ima = time.localtime()

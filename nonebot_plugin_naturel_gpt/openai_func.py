@@ -3,6 +3,7 @@ import os
 from typing import Tuple, Dict
 from logger import logger
 #from nonebot.utils import run_sync
+import utils
 from tiktoken import Encoding, encoding_for_model # type: ignore
 
 import base64, mimetypes
@@ -235,31 +236,9 @@ class TextGenerator(Singleton["TextGenerator"]):
         openai.api_base = self.base_url_image
         try:
             #if self.config['model'].startswith('gpt-3.5-turbo') or self.config['model'].startswith('gpt-4'):
-            image_url = custom.get('image_url', '')
-            if image_url == '':
-                return '获取不到 image_url', False
-            elif image_url.startswith('http'):
-                try:
-                    url_pattern = r"https?://[^\s]+"
-                    url_match = re.search(url_pattern, image_url)
-                except Exception as e:
-                    return f"图像地址解析错误: {e}", False
-            elif image_url.startswith('data:image/'):
-                pass
-            elif re.match(r'^(?:(?:[a-zA-Z]:|\.{1,2})?[\\/](?:[^\\?/*|<>:"]+[\\/])*)(?:(?:[^\\?/*|<>:"]+?)(?:\.[^.\\?/*|<>:"]+)?)?$', image_url):
-                try:
-                    with open(image_url, "rb") as image_file:
-                        image_data = image_file.read()
-                        # 猜测图片类型
-                        mime_type, _ = mimetypes.guess_type(image_url)
-                        if not mime_type or not mime_type.startswith('image/'):
-                            return f"文件不是图像: {image_url}", False
-                        #image_format = mime_type.split('/')[-1]
-                except Exception as e:#FileNotFoundError:
-                    return f"图像路径错误: {e}", False
-                # 将图像数据编码为Base64
-                base64_image = base64.b64encode(image_data).decode('utf-8')
-                image_url = f"data:{mime_type};base64,{base64_image}"
+            success, image_url = utils.generate_image_url(custom.get('image_url', ''))
+            if not success:
+                return image_url, False
 
             if prompt == '':
                 prompt = '这张图里有些什么？'

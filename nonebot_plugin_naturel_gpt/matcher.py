@@ -314,26 +314,10 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
 
     # 检测是否包含图像，图像是否有效
     if trigger_image:
-        if trigger_image.startswith('http'):
-            try:
-                url_pattern = r"https?://[^\s]+"
-                url_match = re.search(url_pattern, trigger_image)
-            except Exception as e:
-                logger.error(f"图像地址解析错误: {e}")
-                return
-        elif trigger_image.startswith('data:image/'):
-            pass
-        else:
-            try:
-                with open(trigger_image, "rb") as image_file:
-                    image_data = image_file.read()
-                    mime_type, _ = mimetypes.guess_type(trigger_image)
-                    if not mime_type or not mime_type.startswith('image/'):
-                        logger.error(f"文件不是图像: {trigger_image}")
-                        return
-            except Exception as e:
-                logger.error(f"图像路径错误: {e}")
-                return
+        image_url_success, image_url = generate_image_url(trigger_image)
+        if not image_url_success:
+            logger.error(image_url)
+            return
 
     # 唤醒词检测
     for w in config.WORD_FOR_WAKE_UP:
@@ -503,7 +487,8 @@ async def do_msg_response(trigger_userid:str, trigger_text:str, is_tome:bool, ch
                 break
 
     # 提取markdown格式的代码块
-    re.findall(r"```(.+?)```", raw_res, re.S)
+    #re.findall(r"```(.+?)```", raw_res, re.S)
+    re.findall(r"```[\s\S]+```", raw_res, re.S)
     # 提取后去除所有markdown格式的代码块，剩余部分为对话结果
     talk_res = re.sub(r"```(.+?)```", '', raw_res)
 

@@ -25,7 +25,7 @@ from config import config
 #except ImportError:
 #    import json
 
-import json, mss # type: ignore
+import json, mss, re, base64, mimetypes # type: ignore
 
 '''def to_me():
     warnings.warn("this function is deprecated", DeprecationWarning)
@@ -234,3 +234,35 @@ async def take_screenshot() -> str:
             return(screenshot)
     except Exception as e:
         logger.error(f"截图过程中发生错误: {e}")
+
+
+def generate_image_url(image_url:str='')->Tuple[bool, str]:
+    #image_url = custom.get('image_url', '')
+    if image_url == '':
+        return False, '获取不到 image_url'
+    elif image_url.startswith('http'):
+        try:
+            url_pattern = r"https?://[^\s]+"
+            url_match = re.search(url_pattern, image_url)
+            return True, image_url
+        except Exception as e:
+            return False, f"图像地址解析错误: {e}"
+    elif image_url.startswith('data:image/'):
+        return True, image_url
+    elif re.match(r'^(?:(?:[a-zA-Z]:|\.{1,2})?[\\/](?:[^\\?/*|<>:"]+[\\/])*)(?:(?:[^\\?/*|<>:"]+?)(?:\.[^.\\?/*|<>:"]+)?)?$', image_url):
+        try:
+            with open(image_url, "rb") as image_file:
+                image_data = image_file.read()
+                # 猜测图片类型
+                mime_type, _ = mimetypes.guess_type(image_url)
+                if not mime_type or not mime_type.startswith('image/'):
+                    return False, f"文件不是图像: {image_url}"
+                #image_format = mime_type.split('/')[-1]
+        except Exception as e:#FileNotFoundError:
+            return False, f"图像路径错误: {e}"
+        # 将图像数据编码为Base64
+        base64_image = base64.b64encode(image_data).decode('utf-8')
+        image_url = f"data:{mime_type};base64,{base64_image}"
+        return True, image_url
+    else:
+        return False, f"无法识别图像: {image_url}"

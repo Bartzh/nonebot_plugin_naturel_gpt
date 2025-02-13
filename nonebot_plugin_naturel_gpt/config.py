@@ -30,6 +30,8 @@ class Config(BaseModel, extra=Extra.ignore):
     """ng 配置数据，默认保存为 naturel_gpt_config.yml"""
     FRONTEND_URL: str
     """前端地址"""
+    #NATIVE_MULTIMODAL: bool
+    """是否启用原生多模态"""
     OPENAI_API_KEYS: List[str]
     """OpenAI API Key 列表"""
     OPENAI_API_KEYS_IMAGE: List[str]
@@ -197,6 +199,7 @@ class Config(BaseModel, extra=Extra.ignore):
 # 配置文件模板(把全部默认值写到Config定义里比较乱，因此保留此默认值对象,作为真实的默认值)
 CONFIG_TEMPLATE = {
     "FRONTEND_URL": "http://127.0.0.1:36264",
+    #"NATIVE_MULTIMODAL": False,
     "OPENAI_API_KEYS": [    # OpenAI API Key 列表
         'sk-xxxxxxxxxxxxx',
         'sk-xxxxxxxxxxxxx',
